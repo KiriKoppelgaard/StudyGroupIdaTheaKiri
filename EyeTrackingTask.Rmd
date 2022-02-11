@@ -201,3 +201,25 @@ ggplot(individual, aes(x=website, y=nr_saccades, fill=website)) +
 ```
 
 
+
+#TAM QUESTIONNAIRE (OBS: different participants...)
+```{r}
+tam <- read.csv("TAM_data_clean.csv")
+
+
+
+#could try splitting by anthropologist and participant (Tylle saw some patterns...)
+tam %>%
+  group_by(Participant) %>%
+  summarise #summarise SOMETHING
+
+
+#Kristian: use a cumulative link model (since it's ordinal outcome) - package 'ordinal'
+
+
+```
+
+
+
+
+
