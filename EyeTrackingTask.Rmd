@@ -4,7 +4,8 @@ output: html_document
 ---
 
 ```{r}
-pacman::p_load(tidyverse, lmerTest, reshape2)
+#libraries
+pacman::p_load(tidyverse, lmerTest, reshape2, ggplot2)
 ```
 
 ## Load data 
@@ -65,7 +66,10 @@ For example, if you are interested in synchronicity between gaze velocity and mo
 ```{r}
 ## CLEANING AND PROCESSING HERE - if needed ##
 
-df$event_unique <- paste(df$event, df$event_n, sep="")
+df$event_unique <- paste(df$event, df$event_n, sep="") #unique event
+
+test <- df %>% group_by(event_unique) %>% mutate(count = n()) #makes no sense?
+
 
 ```
 
@@ -106,8 +110,7 @@ inspect <- df %>%
 
         
     #ENTROPY/VARIABILITY OF SACCADES?
-    
-    
+  
     
     #OTHER?
     mean_dil_r = mean(pdr),
@@ -123,6 +126,72 @@ inspect
 
 ```
 
+```{r}
+#INDIVIDUAL LEVEL
+individual <- df %>%
+  group_by(name, website) %>%
+  summarise(
+    
+    #NR OF FIXATIONS/SACCADES
+    nr_events = length(unique(event_unique)),
+    nr_fixations = length(unique(event_unique[event=="fixation"])),
+    nr_saccades = length(unique(event_unique[event=="saccade"])),
+    
+      #hmm... per definition, there'll always be one less saccade than nr of fixations!
+      #insight: nfbio had overall more fixations (and thus more saccades) (but no big difference)
+    
+    #DURATION OF FIXATIONS/SACCADES
+    
+    
+    #RATIO BETWEEN FIXATIONS AND SACCADES
+
+        
+    #ENTROPY/VARIABILITY OF SACCADES?
+  
+    
+    #OTHER?
+    mean_dil_r = mean(pdr),
+    mean_dil_l = mean(pdl),
+    mean_vel = mean(velocity),
+    mean(x),
+    mean(y),
+    
+    
+    )
+
+
+
+#
+testy <- df %>% subset(name == "42") %>% summarise(unique(event_unique[event=="fixation"]))
+testy
+
+length(testy)
+
+```
+
+
+```{r}
+#PLOTS
+
+#boxplot: nr of fixations
+ggplot(individual, aes(x=website, y=nr_fixations, fill=website)) + 
+  geom_boxplot(alpha=0.3) +
+  geom_point(aes(y=nr_fixations,color=name), size=3, alpha=0.8) +
+  geom_line(aes(group=name, color=name), size=1, alpha=0.8) +
+  labs(title = "Mean nr of fixations per website (per subject)")
+
+#nr saccades
+#boxplot: nr of fixations
+ggplot(individual, aes(x=website, y=nr_saccades, fill=website)) + 
+  geom_boxplot(alpha=0.3) +
+  geom_point(aes(y=nr_fixations,color=name), size=3, alpha=0.8) +
+  geom_line(aes(group=name, color=name), size=1, alpha=0.8) +
+  labs(title = "Mean nr of saccades per website (per subject)")
+
+
+```
+
+
 
 ```{r}
 #Test your hypothesis here :D
@@ -130,5 +199,27 @@ inspect
 
 
 ```
+
+
+
+#TAM QUESTIONNAIRE (OBS: different participants...)
+```{r}
+tam <- read.csv("TAM_data_clean.csv")
+
+
+
+#could try splitting by anthropologist and participant (Tylle saw some patterns...)
+tam %>%
+  group_by(Participant) %>%
+  summarise #summarise SOMETHING
+
+
+#Kristian: use a cumulative link model (since it's ordinal outcome) - package 'ordinal'
+
+
+```
+
+
+
 
 
