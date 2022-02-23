@@ -1,3 +1,4 @@
+from asyncio.windows_events import NULL
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -28,16 +29,12 @@ race = st.sidebar.selectbox('Race', races)
 st.sidebar.write('Choose how to color the plots:')
 color_by = st.sidebar.selectbox('Color by', options=['Sex', 'Race', 'HighestEducation', 'Nothing'])
 
-#INITIAL TEXT:
-st.title('Welcome!')
-st.write('##### Here you can explore the Eisenberg data set. Use the sidebar to blablabla.')
+st.markdown("<h1 style='text-align: center; color: green;'>How do you become the most mindful person?</h1>", unsafe_allow_html=True)
 
 with st.expander("Show full data set"):
     st.write(df)
 
 
-
-st.write('##### Here are some cool plots. Use the sidebar to choose what to color by:')
 #plots in columns:
 left_column, right_column = st.columns(2)
 
@@ -47,22 +44,28 @@ dfplot = df[df["Sex"] == sex]
 #Race
 dfplot = dfplot[dfplot["Race"] == race]
 
-xplot = 'five_facet_mindfulness_survey.act_with_awareness' #can make them select it maybe?
-yplot = 'HouseholdIncome'
+yplot = 'five_facet_mindfulness_survey.act_with_awareness'
+xplot = 'HouseholdIncome'
 
 with left_column:
     #line plot
-    fig = px.line(dfplot, x= xplot, y= yplot, title='Some plot')        
+    fig = px.scatter(dfplot, x= xplot, y= yplot, title='How does your income affect your mindfulness?', trendline="ols")        
     if color_by!='Nothing':
-        fig = px.line(dfplot, x= xplot, y= yplot, color=color_by, title='Some plot')
+        fig = px.scatter(dfplot, x= xplot, y= yplot, color=color_by, title='How does your income affect your mindfulness?', trendline="ols")
     st.plotly_chart(fig, use_container_width=True) #display the plot
+
+yplot = 'five_facet_mindfulness_survey.act_with_awareness'
+xplot = 'CoffeeCupsPerDay'
 
 with right_column:
     #scatter plot
-    fig = px.line(dfplot, x= xplot, y= yplot, title='Another plot')        
+    fig = px.box(dfplot, x= xplot, y= yplot, title='How does your coffee intake affect you mindfulness?')        
     if color_by!='Nothing':
-        fig = px.scatter(dfplot, x= xplot, y= yplot, color=color_by,title='Another plot')
+        fig = px.box(dfplot, x= xplot, y= yplot, color=color_by,title='How does your coffee intake affect you mindfulness?')
     st.plotly_chart(fig, use_container_width=True) #display the plot
+
+st.write('')
+st.markdown("<h5 style='text-align: center; color: blue;'>Use the sidebar to choose what to color by</h1>", unsafe_allow_html=True)
 
 
 #add some more cool plots, make them interactive - maybe with slider
