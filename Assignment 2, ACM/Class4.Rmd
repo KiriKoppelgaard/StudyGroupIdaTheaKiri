@@ -176,3 +176,5 @@ generated_quantities {
   theta_p = inv_logit(alpha + beta_stay + beta_leave);
 }
 
+- What does the output mean? 
+
