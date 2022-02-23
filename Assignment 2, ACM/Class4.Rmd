@@ -1,0 +1,41 @@
+---
+title: "Untitled"
+author: "KK"
+date: '2022-02-23'
+output: html_document
+---
+```{r}
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, bmrs)
+```
+
+```{r}
+stan_file <- write_stan_file("
+// This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+
+// The input data is two integer numbers: n and k.
+data {
+  int<lower=1> n; // n of trials (there has to be at least 1 to have observable data) 
+  int<lower=0> k;  // n of successes (lowest n is no successes)
+}
+
+// The parameters accepted by the model. Our model accepts only theta, the rate, 
+// which is bound at 0 (no chances of success) and 1 (always success)
+parameters {
+  real<lower=0, upper=1> theta;
+}
+
+// The model to be estimated; prior and likelihood
+model {
+  // The prior for theta is a uniform distribution between 0 and 1
+  theta ~ beta(1, 1);
+  
+  // The model consists in a binomial distribution with a rate theta, 
+  // and a number of trials n generating k successes
+  k ~ binomial(n, theta);
+  
+}
+")
+
+```
+
