@@ -6,8 +6,19 @@ output: html_document
 ---
 ```{r}
 library(pacman)
-p_load(tidyverse, here, posterior, cmdstanr, bmrs)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 ```
+
+#Implementing STAN code for random agent
+```{r}
+data1 <- read.csv('Assignment 2, ACM/bias_detector_agent_random_agent.csv')
+
+data <- list(
+  n = 100, 
+  k = data1$Other[0:100]
+)
+```
+
 
 ```{r}
 stan_file <- write_stan_file("
@@ -16,7 +27,7 @@ stan_file <- write_stan_file("
 // The input data is two integer numbers: n and k.
 data {
   int<lower=1> n; // n of trials (there has to be at least 1 to have observable data) 
-  int<lower=0> k;  // n of successes (lowest n is no successes)
+  array[n]int k;  // choices
 }
 
 // The parameters accepted by the model. Our model accepts only theta, the rate, 
@@ -35,10 +46,17 @@ model {
   k ~ binomial(n, theta);
   
 }
+
 ")
 
 ```
 
+To get the estimates on a probability scale, add the following : 
+
+generated_quantities {
+  real<lower = 0, upper = 1> theta_p;
+  theta_p = inv_logit(theta);
+}
 
 ```{r}
 mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
@@ -56,6 +74,105 @@ samples <- mod$sample(
   max_treedepth = 20,
   adapt_delta = 0.99)
 
-samples
+samples$summary()
 ```
+
+
+#Implementing STAN code for agent: WSLS
+```{r}
+data1 <- read.csv('Assignment 2, ACM/bias_detector_agent_wsls_agent.csv')
+data1$Feedback_Other <- 1 - data1$Feedback_Self[0:100]
+
+#Recoding variables to stay and leave bias: 1 = heads, -1 = tails
+data1$StayBias[data1$Feedback_Other == 1 & data1$Other == 1] <- 1
+data1$StayBias[data1$Feedback_Other == 1 & data1$Other == 0] <- -1
+data1$StayBias[data1$Feedback_Other == 0] <- 0
+
+data1$LeaveBias[data1$Feedback_Other == 0 & data1$Other == 1] <- -1
+data1$LeaveBias[data1$Feedback_Other == 0 & data1$Other == 0] <- 1
+data1$LeaveBias[data1$Feedback_Other == 1] <- 0
+
+
+data <- list(
+  n = 100, 
+  k = data1$Other[0:100],
+  f_stay = data1$StayBias[0:100],
+  f_leave = data1$LeaveBias[0:100]
+)
+```
+
+
+
+```{r}
+stan_file <- write_stan_file("
+// This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+
+// The input data is two integer numbers: n and k.
+data {
+  int <lower=1> n; // n of trials 
+  array[n]int k;  // choices
+  array[n] int f_stay; //stay bias
+  array[n] int f_leave; //leave bias
+}
+
+// The parameters accepted by the model. Our model accepts only theta, the rate, 
+// which is bound at 0 (no chances of success) and 1 (always success)
+parameters {
+  real<lower=0, upper=1> alpha;
+  real<lower=0, upper=1> beta_stay;
+  real<lower=0, upper=1> beta_leave;
+}
+
+// The model to be estimated; prior and likelihood
+model {
+  // The prior for theta is a uniform distribution between 0 and 1
+  target += normal_lpdf(alpha | 0, 1);
+  target += normal_lpdf(beta_stay | 0, 0.3);
+  target += normal_lpdf(beta_leave | 0, 0.3);
+
+  // The model consists in a binomial distribution with a rate theta, 
+  // and a number of trials n generating k successes
+  target += bernoulli_logit_lpmf(k | alpha + beta_stay + beta_leave);
+}
+
+")
+
+```
+
+
+
+```{r}
+mod1 <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
+
+samples <- mod1$sample(
+  data = data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 2000,
+  iter_sampling = 2000,
+  refresh = 500,
+  max_treedepth = 20,
+  adapt_delta = 0.99)
+
+samples$summary()
+```
+
+
+#Questions: 
+- What is the difference between vector and array?
+
+- How to get the following to work? 
+
+transformed_parameters{
+  vector[n] theta;
+  theta = b0 + b1 + b2;
+}
+
+generated_quantities {
+  real<lower = 0, upper = 1> theta_p;
+  theta_p = inv_logit(alpha + beta_stay + beta_leave);
+}
 
