@@ -19,7 +19,9 @@ df["Sex"].replace({0: "Male", 1: "Female"}, inplace=True)
 
 #make lists of unique options for later use in selectboxes
 races = df['Race'].unique()
+races = np.insert(races, 0, 'All') #add choose all option to front of list
 sexes = df['Sex'].unique()
+sexes = np.insert(sexes, 0, 'All') #add choose all option to front of list
 
 #SIDEBAR STUFF:
 st.sidebar.write('Choose which data subsets to explore:')
@@ -39,10 +41,13 @@ with st.expander("Show full data set"):
 left_column, right_column = st.columns(2)
 
 #customise what's plotted?:
+dfplot = df
 #Sex
-dfplot = df[df["Sex"] == sex]
+if sex != "All":
+    dfplot = df[df["Sex"] == sex]
 #Race
-dfplot = dfplot[dfplot["Race"] == race]
+if race != "All":
+    dfplot = dfplot[dfplot["Race"] == race]
 
 yplot = 'five_facet_mindfulness_survey.act_with_awareness'
 xplot = 'HouseholdIncome'
