@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Class 4"
 author: "KK"
 date: '2022-02-23'
 output: html_document
@@ -11,7 +11,8 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 #Implementing STAN code for random agent
 ```{r}
-data1 <- read.csv('Assignment 2, ACM/bias_detector_agent_random_agent.csv')
+setwd("~/Documents/MASTERS_I_COGSCI/second_sem/AdvancedCogMod/Assignment 2_ACM/")
+data1 <- read.csv('bias_detector_agent_random_agent.csv')
 
 data <- list(
   n = 100, 
@@ -19,7 +20,7 @@ data <- list(
 )
 ```
 
-
+# Simple model
 ```{r}
 stan_file <- write_stan_file("
 // This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
@@ -44,8 +45,8 @@ model {
   // The model consists in a binomial distribution with a rate theta, 
   // and a number of trials n generating k successes
   k ~ binomial(n, theta);
-  
 }
+
 
 ")
 
@@ -80,7 +81,7 @@ samples$summary()
 
 #Implementing STAN code for agent: WSLS
 ```{r}
-data1 <- read.csv('Assignment 2, ACM/bias_detector_agent_wsls_agent.csv')
+data1 <- read.csv('bias_detector_agent_wsls_agent.csv')
 data1$Feedback_Other <- 1 - data1$Feedback_Self[0:100]
 
 #Recoding variables to stay and leave bias: 1 = heads, -1 = tails
@@ -94,15 +95,15 @@ data1$LeaveBias[data1$Feedback_Other == 1] <- 0
 
 
 data <- list(
-  n = 100, 
-  k = data1$Other[0:100],
-  f_stay = data1$StayBias[0:100],
-  f_leave = data1$LeaveBias[0:100]
+  n = 120, 
+  k = data1$Other[0:120],
+  f_stay = data1$StayBias[0:120],
+  f_leave = data1$LeaveBias[0:120]
 )
 ```
 
 
-
+# WSLS model
 ```{r}
 stan_file <- write_stan_file("
 // This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
@@ -111,8 +112,8 @@ stan_file <- write_stan_file("
 data {
   int <lower=1> n; // n of trials 
   array[n]int k;  // choices
-  array[n] int f_stay; //stay bias
-  array[n] int f_leave; //leave bias
+  vector<lower=-1, upper=1>[n] f_stay; //stay bias
+  vector<lower=-1, upper=1>[n] f_leave; //leave bias
 }
 
 // The parameters accepted by the model. Our model accepts only theta, the rate, 
@@ -121,6 +122,11 @@ parameters {
   real<lower=0, upper=1> alpha;
   real<lower=0, upper=1> beta_stay;
   real<lower=0, upper=1> beta_leave;
+}
+
+transformed parameters{
+  vector[n] theta;
+  theta = alpha + (beta_stay*f_stay)+ (beta_leave*f_leave); //multiplying the paramaters we want to estimate on the data
 }
 
 // The model to be estimated; prior and likelihood
@@ -132,13 +138,19 @@ model {
 
   // The model consists in a binomial distribution with a rate theta, 
   // and a number of trials n generating k successes
-  target += bernoulli_logit_lpmf(k | alpha + beta_stay + beta_leave);
+  target += bernoulli_logit_lpmf(k | theta);
+}
+
+generated quantities {
+  vector[n] theta_p;
+  theta_p = inv_logit(theta);
 }
 
 ")
 
 ```
 
+Question for Riccardo: in generated quantities, should theta_p be a real number or a vector? You do both in the slides
 
 
 ```{r}
@@ -157,9 +169,10 @@ samples <- mod1$sample(
   max_treedepth = 20,
   adapt_delta = 0.99)
 
-samples$summary()
+samples
 ```
 
+The samples gives a theta for each trial x 2? 
 
 #Questions: 
 - What is the difference between vector and array?
