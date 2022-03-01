@@ -11,8 +11,10 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 #Implementing STAN code for random agent
 ```{r}
-setwd("~/Documents/MASTERS_I_COGSCI/second_sem/AdvancedCogMod/Assignment 2_ACM/")
+#setwd("~/Documents/MASTERS_I_COGSCI/second_sem/AdvancedCogMod/Assignment 2_ACM/")
 data1 <- read.csv('bias_detector_agent_random_agent.csv')
+#data1 <- read.csv('Assignment 2_ACM/bias_detector_agent_random_agent.csv')
+
 
 data <- list(
   n = 100, 
@@ -81,8 +83,11 @@ samples$summary()
 
 #Implementing STAN code for agent: WSLS
 ```{r}
+
 data1 <- read.csv('bias_detector_agent_wsls_agent.csv')
-data1$Feedback_Other <- 1 - data1$Feedback_Self[0:100]
+#data1 <- read.csv('Assignment 2_ACM/bias_detector_agent_wsls_agent.csv')
+
+data1$Feedback_Other <- 1 - data1$Feedback_Self[0:120]
 
 #Recoding variables to stay and leave bias: 1 = heads, -1 = tails
 data1$StayBias[data1$Feedback_Other == 1 & data1$Other == 1] <- 1
