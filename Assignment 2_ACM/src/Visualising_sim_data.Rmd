@@ -1,0 +1,72 @@
+---
+title: "Visualising_sim_data"
+author: "KK"
+date: '2022-02-22'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#Loading packages
+pacman::p_load(tidyverse)
+
+#Loading function
+source('simulating_data.R')
+
+#load data
+n = 1 
+files = list.files(path = 'data/')
+
+for (i in files){
+  print
+  temp <- read.csv(paste('data/', i, sep = ''))
+                   
+  if (n==1){df1 <- temp} else {df1 <- bind_rows(df1, temp)}
+  n = n + 1
+}
+```
+
+```{r}
+
+
+bias_detector_agent <- df1 %>%
+  filter(Self_agent == "bias_detector_agent")
+
+for (agent in unique(Other_agent)){
+  df2 <- filter(df1, Self_agent == agent)
+  cumsum(df1$Feedback_Self) / seq_along(df1$Feedback_Self)
+}
+
+w <- df1 %>%
+  filter(Self_agent == "ws2ls_agent")
+
+df1$cumulativerateSelf <- df1 %>% group_by(Other_agent) 
+
+cumsum(df1$Feedback_Self) / seq_along(df1$Feedback_Self)
+
+df1$cumulativerateOther <- cumsum(1-df1$Feedback_Self) / seq_along(df1$Feedback_Self)
+
+ggplot(w) + theme_classic() +
+  geom_line(color="red", aes(trial, cumulativerateSelf)) +
+  geom_line(color="blue", aes(trial, cumulativerateOther)) + 
+  facet_wrap(.~Other_agent) +
+  labs(title = "WS2LS")
+
+ggplot(bias_detector_agent) + theme_classic() +
+  geom_line(color="red", aes(trial, cumulativerateSelf)) +
+  geom_line(color="blue", aes(trial, cumulativerateOther)) + 
+  facet_wrap(.~Other_agent) +
+  labs(title = "bias detector agent")
+
+
+```
+
+
+
+
+
+

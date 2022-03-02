@@ -14,26 +14,17 @@ output: html_document
 
 #Load data and recode variables
 ```{r}
-data <- read.csv('bias_detector_agent_wsls_agent.csv')
-
-data$Feedback_Other <- 1 - data$Feedback_Self[0:120]
+df <- read.csv('data/wsls_agent_random_agent_lb.9_sb.7.csv')
 
 #Recoding variables to stay and leave bias: 1 = heads, -1 = tails
-data$StayBias[data$Feedback_Other == 1 & data$Other == 1] <- 1
-data$StayBias[data$Feedback_Other == 1 & data$Other == 0] <- -1
-data$StayBias[data$Feedback_Other == 0] <- 0
+df$win[df$Feedback_Self == 1 & df$Self == 1] <- 1
+df$win[df$Feedback_Self == 1 & df$Self == 0] <- -1
+df$win[df$Feedback_Self == 0] <- 0
 
-data$LeaveBias[data$Feedback_Other == 0 & data$Other == 1] <- -1
-data$LeaveBias[data$Feedback_Other == 0 & data$Other == 0] <- 1
-data$LeaveBias[data$Feedback_Other == 1] <- 0
+df$lose[df$Feedback_Self == 0 & df$Self == 1] <- -1
+df$lose[df$Feedback_Self == 0 & df$Self == 0] <- 1
+df$lose[df$Feedback_Self == 1] <- 0
 
-
-data <- list(
-  n = 120, 
-  k = data$Other[0:120],
-  f_stay = data$StayBias[0:120],
-  f_leave = data$LeaveBias[0:120]
-)
 ```
 
 
@@ -64,8 +55,8 @@ stan_file <- write_stan_file("
 data {
   int <lower=1> n; // n of trials 
   array[n]int k;  // choices
-  vector<lower=-1, upper=1>[n] f_stay; //stay bias
-  vector<lower=-1, upper=1>[n] f_leave; //leave bias
+  vector<lower=-1, upper=1>[n] win; //stay bias
+  vector<lower=-1, upper=1>[n] lose; //leave bias
   real prior_mean_bstay; 
   real <lower = 0> prior_sd_bstay;
 }
@@ -80,7 +71,7 @@ parameters {
 
 transformed parameters{
   vector[n] theta;
-  theta = alpha + (beta_stay*f_stay)+ (beta_leave*f_leave); //multiplying the paramaters we want to estimate on the data
+  theta = alpha + (beta_stay*win)+ (beta_leave*lose); //multiplying the paramaters we want to estimate on the data
 }
 
 // The model to be estimated; prior and likelihood
@@ -99,19 +90,23 @@ generated quantities{
   real bstay_prior;
   real bstay_posterior;
   int<lower=0, upper=n> prior_preds;
-  int<lower=0, upper=n> posterior_preds;
+  array[n] int <lower=0, upper=n> posterior_preds;
 
   bstay_prior = normal_rng(0,1);
   bstay_posterior = beta_stay;
   
   prior_preds = binomial_rng(n, bstay_prior);
   posterior_preds = binomial_rng(n, inv_logit(theta));
-  posteriorWH_preds = binomial_rng(n, inv_logit(alpha + beta_stay*1 + beta_leave*0));
 }
 
 ")
 
 ```
+
+Technically you could access parameter values all four possible conditions as follows: 
+
+- posteriorWH_preds = binomial_rng(n, inv_logit(alpha + beta_stay*1 + beta_leave*0));
+
 
 ```{r}
 #Compile the model
@@ -125,9 +120,9 @@ sensitivity_df <- NULL
 for (p in seq(nrow(priors))){
   data <- list(
     n = 120, 
-    k = data$Other[0:120],
-    f_stay = data$StayBias[0:120],
-    f_leave = data$LeaveBias[0:120],
+    k = df$Self[0:120],
+    win = df$win[0:120],
+    lose = df$lose[0:120],
     prior_mean_bstay = priors$prior_mean_bstay[p],
     prior_sd_bstay = priors$prior_sd_bstay[p]
   )
@@ -165,24 +160,13 @@ for (p in seq(nrow(priors))){
 ggplot(data=sensitivity_df, aes(x=prior_mean_bstay, y=logit_scaled(bstay_posterior))) +
   geom_point(size = 3, alpha = .3) +
   theme_bw()
-
-  #ylim(-1.3, 0.3) +
-  labs(x="Standard Deviation of Slope Prior", 
-       y="Posterior Estimate for slope", 
-       title="Sensitivity analysis") +
-   +
-  theme(plot.title = element_text(hjust = 0.5, size = 15),
-        axis.title.x = element_text(size = 13),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        axis.title.y = element_text(size = 13))
 ```
 
 
 
 #Plots of prior and for predictive checks
 
-```{r}
+```{r, eval = FALSE}
 #Prior predictive check 
 ggplot(draws_df) + 
   geom_histogram(aes(prior_preds),
