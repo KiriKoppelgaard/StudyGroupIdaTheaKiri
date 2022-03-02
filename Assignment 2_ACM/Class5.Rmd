@@ -33,7 +33,7 @@ df$lose[df$Feedback_Self == 1] <- 0
 ```
 
 
-#Sensitivity check
+#Sensitivity check #Ida was here!
 
 ```{r}
 
