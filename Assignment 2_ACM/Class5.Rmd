@@ -11,6 +11,11 @@ output: html_document
 § Include a prior sensitivity plot
 § Perform parameter recovery, including a test of trials needed to *adequately* recover the true parameter values
 § N.B. this might include many loops: range of true parameter values, range of noise levels, range of trials, range of n agents within the same condition, range of prior parameters. This could take forever to run. So you are allowed to only pick a few (hint: true parameter values and range of trial n is all is required)
+```{r}
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
+```
+
 
 #Load data and recode variables
 ```{r}
@@ -96,7 +101,7 @@ generated quantities{
   bstay_posterior = beta_stay;
   
   prior_preds = binomial_rng(n, bstay_prior);
-  posterior_preds = binomial_rng(n, inv_logit(theta));
+  posterior_preds = binomial_rng(n, theta);
 }
 
 ")
