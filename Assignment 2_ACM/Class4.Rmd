@@ -11,7 +11,7 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 #Implementing STAN code for random agent
 ```{r}
-#setwd("~/Documents/MASTERS_I_COGSCI/second_sem/AdvancedCogMod/Assignment 2_ACM/")
+setwd("~/Documents/MASTERS_I_COGSCI/second_sem/AdvancedCogMod/Assignment 2_ACM/")
 data1 <- read.csv('bias_detector_agent_random_agent.csv')
 #data1 <- read.csv('Assignment 2_ACM/bias_detector_agent_random_agent.csv')
 
@@ -195,4 +195,25 @@ generated_quantities {
 }
 
 - What does the output mean? 
+
+
+# Class 5
+ In today’s class you will have to rely on your stan model from last week to
+§ Include output variables for prior and for predictive checks
+§ Include a prior sensitivity plot
+§ Perform parameter recovery, including a test of trials needed to *adequately* recover the true parameter values
+§ N.B. this might include many loops: range of true parameter values, range of noise levels, range of trials, range of n agents within the same condition, range of prior parameters. This could take forever to run. So you are allowed to only pick a few (hint: true parameter values and range of trial n is all is required)
+
+
+```{r}
+'''
+generated quantities{
+  real<lower=0, upper=1> theta_prior; real<lower=0, upper=1> theta_posterior;
+  theta_prior = inv_logit(normal_rng(0,1));
+theta_posterior = inv_logit(theta); }
+'''
+
+```
+
+
 
