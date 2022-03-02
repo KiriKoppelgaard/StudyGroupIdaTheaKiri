@@ -100,8 +100,8 @@ generated quantities{
   bstay_prior = normal_rng(0,1);
   bstay_posterior = beta_stay;
   
-  prior_preds = binomial_rng(n, bstay_prior);
-  posterior_preds = binomial_rng(n, theta);
+  prior_preds = binomial_rng(n, inv_logit(bstay_prior));
+  posterior_preds = binomial_rng(n, inv_logit(theta));
 }
 
 ")
@@ -161,10 +161,13 @@ for (p in seq(nrow(priors))){
 
 #Include a prior sensitivity plot
 ```{r}
-
-ggplot(data=sensitivity_df, aes(x=prior_mean_bstay, y=logit_scaled(bstay_posterior))) +
+ggplot(data=sensitivity_df, aes(x=prior_mean_bstay, y=inv.logit(bstay_posterior))) +
+  facet_wrap(~ prior_sd_bstay) + 
   geom_point(size = 3, alpha = .3) +
-  theme_bw()
+  geom_hline(yintercept = 0.9, color = 'red', linetype = 'dashed') + 
+  theme_bw() + 
+  
+
 ```
 
 
