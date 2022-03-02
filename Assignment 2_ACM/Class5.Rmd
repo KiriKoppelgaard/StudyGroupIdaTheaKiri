@@ -1,0 +1,214 @@
+---
+title: "Class 5"
+author: "KK"
+date: '2022-03-02'
+output: html_document
+---
+
+# Class 5
+ In today’s class you will have to rely on your stan model from last week to
+§ Include output variables for prior and for predictive checks
+§ Include a prior sensitivity plot
+§ Perform parameter recovery, including a test of trials needed to *adequately* recover the true parameter values
+§ N.B. this might include many loops: range of true parameter values, range of noise levels, range of trials, range of n agents within the same condition, range of prior parameters. This could take forever to run. So you are allowed to only pick a few (hint: true parameter values and range of trial n is all is required)
+
+#Load data and recode variables
+```{r}
+data <- read.csv('bias_detector_agent_wsls_agent.csv')
+
+data$Feedback_Other <- 1 - data$Feedback_Self[0:120]
+
+#Recoding variables to stay and leave bias: 1 = heads, -1 = tails
+data$StayBias[data$Feedback_Other == 1 & data$Other == 1] <- 1
+data$StayBias[data$Feedback_Other == 1 & data$Other == 0] <- -1
+data$StayBias[data$Feedback_Other == 0] <- 0
+
+data$LeaveBias[data$Feedback_Other == 0 & data$Other == 1] <- -1
+data$LeaveBias[data$Feedback_Other == 0 & data$Other == 0] <- 1
+data$LeaveBias[data$Feedback_Other == 1] <- 0
+
+
+data <- list(
+  n = 120, 
+  k = data$Other[0:120],
+  f_stay = data$StayBias[0:120],
+  f_leave = data$LeaveBias[0:120]
+)
+```
+
+
+#Sensitivity check
+
+```{r}
+
+#Create priors 
+prior_mean_bstay <- seq(-3, 3, .5)
+prior_sd_bstay <- seq(0.1, 1, 0.1)
+
+#Create all possible combinations 
+priors <- expand.grid(prior_mean_bstay, prior_sd_bstay)
+
+
+#reshape the data
+priors <- tibble(prior_mean_bstay = priors$Var1, prior_sd_bstay=priors$Var2)
+
+```
+
+
+#Include output variables for prior and for predictive checks
+```{r}
+stan_file <- write_stan_file("
+// This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+
+// The input data is two integer numbers: n and k.
+data {
+  int <lower=1> n; // n of trials 
+  array[n]int k;  // choices
+  vector<lower=-1, upper=1>[n] f_stay; //stay bias
+  vector<lower=-1, upper=1>[n] f_leave; //leave bias
+  real prior_mean_bstay; 
+  real <lower = 0> prior_sd_bstay;
+}
+
+// The parameters accepted by the model. Our model accepts only theta, the rate, 
+// which is bound at 0 (no chances of success) and 1 (always success)
+parameters {
+  real alpha;
+  real beta_stay;
+  real beta_leave;
+}
+
+transformed parameters{
+  vector[n] theta;
+  theta = alpha + (beta_stay*f_stay)+ (beta_leave*f_leave); //multiplying the paramaters we want to estimate on the data
+}
+
+// The model to be estimated; prior and likelihood
+model {
+  // The prior for theta is a uniform distribution between 0 and 1
+  target += normal_lpdf(alpha | 0, 1);
+  target += normal_lpdf(beta_stay | prior_mean_bstay, prior_sd_bstay);
+  target += normal_lpdf(beta_leave | 0, 0.3);
+
+  // The model consists in a binomial distribution with a rate theta, 
+  // and a number of trials n generating k successes
+  target += bernoulli_logit_lpmf(k | theta);
+}
+
+generated quantities{
+  real bstay_prior;
+  real bstay_posterior;
+  int<lower=0, upper=n> prior_preds;
+  int<lower=0, upper=n> posterior_preds;
+
+  bstay_prior = normal_rng(0,1);
+  bstay_posterior = beta_stay;
+  
+  prior_preds = binomial_rng(n, bstay_prior);
+  posterior_preds = binomial_rng(n, inv_logit(theta));
+  posteriorWH_preds = binomial_rng(n, inv_logit(alpha + beta_stay*1 + beta_leave*0));
+}
+
+")
+
+```
+
+```{r}
+#Compile the model
+mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
+```
+
+```{r}
+sensitivity_df <- NULL
+
+for (p in seq(nrow(priors))){
+  data <- list(
+    n = 120, 
+    k = data$Other[0:120],
+    f_stay = data$StayBias[0:120],
+    f_leave = data$LeaveBias[0:120],
+    prior_mean_bstay = priors$prior_mean_bstay[p],
+    prior_sd_bstay = priors$prior_sd_bstay[p]
+  )
+  
+  samples <- mod$sample(
+  data = data,
+  seed = 123,
+  chains = 1,
+  parallel_chains = 1,
+  threads_per_chain = 1,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  refresh = 1000,
+  max_treedepth = 20,
+  adapt_delta = 0.99)
+  
+  draws_df <- as_draws_df(samples$draws())
+  
+  temp <- tibble(bstay_prior = draws_df$bstay_prior, 
+                 bstay_posterior = draws_df$bstay_posterior,
+                 prior_preds = draws_df$prior_preds, 
+                 posterior_preds = draws_df$posterior_preds, 
+                 prior_mean_bstay = priors$prior_mean_bstay[p],
+                 prior_sd_bstay = priors$prior_sd_bstay[p]
+                 )
+  if(exists("sensitivity_df")){sensitivity_df <- rbind (sensitivity_df, temp)} else {sensitivity_df <- temp}
+  
+}
+```
+
+
+#Include a prior sensitivity plot
+```{r}
+
+ggplot(data=sensitivity_df, aes(x=prior_mean_bstay, y=logit_scaled(bstay_posterior))) +
+  geom_point(size = 3, alpha = .3) +
+  theme_bw()
+
+  #ylim(-1.3, 0.3) +
+  labs(x="Standard Deviation of Slope Prior", 
+       y="Posterior Estimate for slope", 
+       title="Sensitivity analysis") +
+   +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        axis.title.x = element_text(size = 13),
+        axis.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 12),
+        axis.title.y = element_text(size = 13))
+```
+
+
+
+#Plots of prior and for predictive checks
+
+```{r}
+#Prior predictive check 
+ggplot(draws_df) + 
+  geom_histogram(aes(prior_preds),
+  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted heads out of 120 trials") + 
+  ylab("Posterior Density") + theme_classic()
+
+#Has the model learned from the data? 
+ggplot(draws_df) +
+  geom_density(aes(bstay_posterior), fill="blue", alpha=0.3) + 
+  geom_density(aes(bstay_prior), fill="red", alpha=0.3) +   xlab("Rate") +
+  ylab("Posterior Density") +
+  theme_classic()
+
+#Are the predictions alright?
+ggplot(draws_df) + geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
+  geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
+  xlab("Predicted heads out of 120 trials") + ylab("Posterior Density") + theme_classic()
+
+#Learning in the predictions
+ggplot(draws_df) +
+  geom_histogram(aes(prior_preds), color="lightblue", fill="blue", alpha=0.3, bins=90) +
+  geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
+  geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
+  xlab("Predicted heads out of 120 trials") + ylab("Density") +
+  theme_classic()
+
+```
+
+
