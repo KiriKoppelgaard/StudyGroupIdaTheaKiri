@@ -161,16 +161,25 @@ for (p in seq(nrow(priors))){
 
 #Include a prior sensitivity plot
 ```{r}
+#Plot of mean
 ggplot(data=sensitivity_df, aes(x=prior_mean_bstay, y=inv.logit(bstay_posterior))) +
   facet_wrap(~ prior_sd_bstay) + 
   geom_point(size = 3, alpha = .3) +
   geom_hline(yintercept = 0.9, color = 'red', linetype = 'dashed') + 
-  theme_bw() + 
-  
+  labs(x="Mean", y="Posterior", title = 'Prior Sensitivity Check for Beta Stay')+ 
+  theme_bw()
 
+#Plot of sd
+ggplot(data=sensitivity_df, aes(x=prior_sd_bstay, y=inv.logit(bstay_posterior))) +
+  facet_wrap(~ prior_mean_bstay) + 
+  geom_point(size = 3, alpha = .3) +
+  geom_hline(yintercept = 0.9, color = 'red', linetype = 'dashed') + 
+  labs(x="SD", y="Posterior", title = 'Prior Sensitivity Check for Beta Stay')+ 
+  theme_bw()
+  
 ```
 
-
+#Perform parameter recovery
 
 #Plots of prior and for predictive checks
 
