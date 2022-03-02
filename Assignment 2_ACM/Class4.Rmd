@@ -11,10 +11,7 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 #Implementing STAN code for random agent
 ```{r}
-setwd("~/Documents/MASTERS_I_COGSCI/second_sem/AdvancedCogMod/Assignment 2_ACM/")
 data1 <- read.csv('bias_detector_agent_random_agent.csv')
-#data1 <- read.csv('Assignment 2_ACM/bias_detector_agent_random_agent.csv')
-
 
 data <- list(
   n = 100, 
@@ -205,14 +202,18 @@ generated_quantities {
 § N.B. this might include many loops: range of true parameter values, range of noise levels, range of trials, range of n agents within the same condition, range of prior parameters. This could take forever to run. So you are allowed to only pick a few (hint: true parameter values and range of trial n is all is required)
 
 
-```{r}
-'''
 generated quantities{
   real<lower=0, upper=1> theta_prior; real<lower=0, upper=1> theta_posterior;
   theta_prior = inv_logit(normal_rng(0,1));
 theta_posterior = inv_logit(theta); }
-'''
 
+
+```{r}
+prior_mean_bstay <- seq(-3, 3, .5)
+prior_sd_bstay <- seq(0.1, 1, 0.1)
+
+priors <- expand.grid(prior_mean_bstay, prior_sd_bstay)
+priors <- tibble(prior_mean_bstay = priors$Var1, prior_sd_bstay$Var2)
 ```
 
 
