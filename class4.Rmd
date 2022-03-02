@@ -10,3 +10,72 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #CLASS 4
 
+```{r}
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, brms)
+
+setwd('/Users/thearolskovsloth/Documents/MASTERS_I_COGSCI/StudyGroupIdaTheaKiri/Assignment 2, ACM/')
+
+data <- read_csv("bias_detector_agent_random_agent.csv")
+data <- data[1:120,]
+
+## Create the data
+data <- list(
+  n = nrow(data), #n of trials
+  k = data$Other
+)
+  
+```
+
+
+```{r}
+library(cmdstanr)
+
+stan_file <- write_stan_file("
+// This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+
+// The input data is two integer numbers: n and k.
+data {
+  int<lower=1> n; // n of trials (there has to be at least 1 to have observable data) 
+  array[n] int k;  // n of successes (lowest n is no successes)
+}
+
+// The parameters accepted by the model. Our model accepts only theta, the rate, 
+// which is bound at 0 (no chances of success) and 1 (always success)
+parameters {
+  real<lower=0, upper=1> theta;
+}
+
+// The model to be estimated; prior and likelihood
+model {
+  // The prior for theta is a uniform distribution between 0 and 1
+  theta ~ beta(1, 1);
+  
+  // The model consists in a binomial distribution with a rate theta, 
+  // and a number of trials n generating k successes
+  k ~ binomial(n, theta);
+  
+}
+
+")
+```
+
+```{r}
+mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
+samples <- mod$sample(
+  data = data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 2000,
+  iter_sampling = 2000,
+  refresh = 500,
+  max_treedepth = 20,
+  adapt_delta = 0.99)
+
+samples
+
+```
+
