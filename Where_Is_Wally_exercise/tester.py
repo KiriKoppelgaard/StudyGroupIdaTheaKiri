@@ -20,11 +20,13 @@ bg_image = imgs[0] #just the first image
 
 # Create a canvas component
 canvas_result = st_canvas(
-    fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
+    fill_color="rgba(255, 165, 0, 0.25)",  # Fixed fill color with some opacity
+    stroke_width=1.5,
+    stroke_color = 'yellow',
     background_image=Image.open(bg_image) if bg_image else None,
     update_streamlit=realtime_update,
-    height=1500,
-    width=1500,
+    height=500,
+    width=700,
     drawing_mode='rect',
     point_display_radius= 0,
     key="canvas",
