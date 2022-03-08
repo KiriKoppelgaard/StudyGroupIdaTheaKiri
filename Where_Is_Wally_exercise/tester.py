@@ -91,7 +91,7 @@ with detection_graph.as_default():
 
 #Create a canvas component
 canvas_result = st_canvas(
-    fill_color="rgba(255, 165, 0, 0.3)",     # Fixed fill color with some opacity
+    fill_color="rgba(255, 165, 0, 0.3)", # Fixed fill color with some opacity
     background_image=Image.open(f'{imgs[index]}.png') if f'{imgs[index]}.png' else None,
     update_streamlit=False,
     height=500,
@@ -100,32 +100,6 @@ canvas_result = st_canvas(
     point_display_radius= 0,
     key="canvas",
     stroke_width= 1,
-)
-
-
-if st.button('Save'):
-    index+=1
-
-<<<<<<< HEAD
-=======
-image = Image.open(imgs[index])
-st.image(image, use_column_width=True)
-
-
-# Create a canvas component
-<<<<<<< HEAD
-canvas_result = st_canvas(
-    fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
-    stroke_width=stroke_width,
-    stroke_color=stroke_color,
-    #background_color=bg_color,
-    background_image=Image.open(bg_image) if bg_image else None,
-    update_streamlit=realtime_update,
-    height=500,
-    width=700,
-    drawing_mode=drawing_mode,
-    point_display_radius=point_display_radius if drawing_mode == 'point' else 0,
-    key="canvas",
 )
 
 # Do something interesting with the image data and paths
@@ -140,21 +114,8 @@ if canvas_result.json_data is not None:
 def save_corrected_data(dataframe):
     dataframe.to_csv('data/hejehj.csv')
 
-if st.button('save'):
+if st.button('Save'):
+    index+=1
     save_corrected_data(objects)
-=======
-#canvas_result = st_canvas(
-#    fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
-#    background_image=Image.open(img) if img else None,
-#    update_streamlit=realtime_update,
-#    height=500,
-#    width=700,
-#    drawing_mode='rect',
-#    point_display_radius= 0,
-#    key="canvas",
-#)
 
->>>>>>> db387aee3ff9b3816e626c81345faae12df3d51a
 
-# Do something interesting with the image data and paths
->>>>>>> 88df59f71a339d1156046287062ac6688e35ad54
