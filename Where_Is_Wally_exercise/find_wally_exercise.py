@@ -79,6 +79,7 @@ for img in imgs:
             "position": pos}, ignore_index = True)
         
 print(df)
+df.to_csv('data/yes.csv')
 
     # vis_util.visualize_boxes_and_labels_on_image_array(
     #     image_np,

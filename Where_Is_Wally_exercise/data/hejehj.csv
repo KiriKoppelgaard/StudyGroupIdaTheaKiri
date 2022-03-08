@@ -1,0 +1,2 @@
+,type,version,originX,originY,left,top,width,height,fill,stroke,strokeWidth,strokeDashArray,strokeLineCap,strokeDashOffset,strokeLineJoin,strokeUniform,strokeMiterLimit,scaleX,scaleY,angle,flipX,flipY,opacity,shadow,visible,backgroundColor,fillRule,paintFirst,globalCompositeOperation,skewX,skewY,radius,startAngle,endAngle
+0,circle,4.4.0,left,center,194.5,60,4,4,"rgba(255, 165, 0, 0.3)",#000000,3,None,butt,0,miter,False,4,1,1,0,False,False,1,None,True,,nonzero,fill,source-over,0,0,2,0,6.283185307179586
