@@ -26,8 +26,8 @@ canvas_result = st_canvas(
     #background_color=bg_color,
     background_image=Image.open(bg_image) if bg_image else None,
     update_streamlit=realtime_update,
-    height=1500,
-    width=1500,
+    height=500,
+    width=700,
     drawing_mode=drawing_mode,
     point_display_radius=point_display_radius if drawing_mode == 'point' else 0,
     key="canvas",
@@ -41,3 +41,9 @@ if canvas_result.json_data is not None:
     for col in objects.select_dtypes(include=['object']).columns:
         objects[col] = objects[col].astype("str")
     st.dataframe(objects)
+
+def save_corrected_data(dataframe):
+    dataframe.to_csv('data/hejehj.csv')
+
+if st.button('save'):
+    save_corrected_data(objects)
