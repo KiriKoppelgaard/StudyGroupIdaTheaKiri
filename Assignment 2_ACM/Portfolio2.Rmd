@@ -17,20 +17,17 @@ We here take a closer look at the win-stay-lose-shift model.
 
 - discussing the results: how many trials should be used at least to properly recover the parameters? Add relevant plot(s).
 
-#Load libraries
+#Load libraries and data
 ```{r}
 library(pacman)
 p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
-```
-
-
-#Load data and recode variables
-```{r}
 df <- read.csv('data/simulated_data.csv')
 df <- df[0:120, ] #load data for single agent 
 ```
 
+
 #Sensitivity check
+Create prior values to loop trough during sensitivity check. 
 
 ```{r}
 
@@ -48,7 +45,8 @@ priors <- tibble(prior_mean_bstay = priors$Var1, prior_sd_bstay=priors$Var2)
 ```
 
 
-#Include output variables for prior and for predictive checks
+#STAN model
+Define the STAN-model of WSLS. 
 ```{r}
 stan_file <- write_stan_file("
 // This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
@@ -103,20 +101,17 @@ generated quantities{
 
 ")
 
+#Compile the model
+mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
 ```
 
 Technically you could access parameter values all four possible conditions as follows: 
 
 - posteriorWH_preds = binomial_rng(n, inv_logit(alpha + beta_stay*1 + beta_leave*0));
 
-
+#Draw posterior distributions
 ```{r}
-#Compile the model
-mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
-
-```
-
-```{r, eval = FALSE}
 sensitivity_df <- NULL
 
 for (p in seq(nrow(priors))){
@@ -156,7 +151,7 @@ for (p in seq(nrow(priors))){
 ```
 
 
-#Include a prior sensitivity plot
+#Prior sensitivity plot
 ```{r}
 #Plot of mean
 ggplot(data=sensitivity_df, aes(x=prior_mean_bstay, y=inv.logit(bstay_posterior))) +
@@ -176,6 +171,40 @@ ggplot(data=sensitivity_df, aes(x=prior_sd_bstay, y=inv.logit(bstay_posterior)))
   
 ```
 
+
+#Plots of prior and for predictive checks
+
+```{r}
+#Prior predictive check 
+ggplot(draws_df) + 
+  geom_histogram(aes(prior_preds),
+  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted heads out of 120 trials") + 
+  ylab("Posterior Density") + theme_classic()
+
+#Has the model learned from the data? 
+ggplot(draws_df) +
+  geom_density(aes(bstay_posterior), fill="blue", alpha=0.3) + 
+  geom_density(aes(bstay_prior), fill="red", alpha=0.3) +   xlab("Rate") +
+  ylab("Posterior Density") +
+  theme_classic()
+
+#Are the predictions alright?
+ggplot(draws_df) + geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
+  geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
+  xlab("Predicted heads out of 120 trials") + ylab("Posterior Density") + theme_classic()
+
+#Learning in the predictions
+ggplot(draws_df) +
+  geom_histogram(aes(prior_preds), color="lightblue", fill="blue", alpha=0.3, bins=90) +
+  geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
+  geom_point(x = sum(df$Self[0:120]), y = 0, color="red", shape = 17, size = 5) +
+  xlab("Predicted heads out of 120 trials") + ylab("Density") +
+  theme_classic()
+
+```
+
+
+
 #Perform parameter recovery
 ```{r}
 #Load simulated data with different rates
@@ -192,15 +221,15 @@ stan_file <- write_stan_file("
 data {
   int <lower=1> n; // n of trials 
   array[n]int k;  // choices; 0 = tails, 1 = heads
-  vector<lower=-1, upper=1>[n] win; //stay bias
-  vector<lower=-1, upper=1>[n] lose; //leave bias
+  vector<lower=-1, upper=1>[n] win; // feedback, if win and heads = 1, win and tails = -1
+  vector<lower=-1, upper=1>[n] lose; //feedback, if lose and heads = -1, lose and tails = 1
 }
 
 // The parameters accepted by the model. Our model accepts only theta, the rate, 
 // which is bound at 0 (no chances of success) and 1 (always success)
 parameters {
   real alpha; // intercept
-  real beta_stay; // the prosensity to stay, given the agent won
+  real beta_stay; // the propensity to stay, given the agent won
   real beta_leave; //the propensity to leave, given the agent lost
 }
 
@@ -230,9 +259,7 @@ generated quantities{
 }
 
 ")
-```
 
-```{r}
 #Compile the model
 mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 ```
@@ -242,10 +269,9 @@ mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedanti
 ```{r}
 #maintain constant staybias
 df_full <- recovery_trials_df[recovery_trials_df$staybias == 0.7,]
-#c(10, 25, 50, 100, 200, 500, 1000, 2500, 5000)
 
-for (leavebias in unique(df$leavebias)){
-  for (trial_n in c(10)){
+for (leavebias in unique(df_full$leavebias)){
+  for (trial_n in c(10, 25, 50, 100, 200, 500, 1000, 2500, 5000)){
     df <- df_full[df_full$leavebias == leavebias, ] 
     
     data <- list(
@@ -269,7 +295,9 @@ for (leavebias in unique(df$leavebias)){
     
     draws_df <- as_draws_df(samples$draws())
     
-    temp <- tibble(
+    temp <- tibble(leavebias_true = leavebias, 
+                   trials = trial_n, 
+                   staybias_true = unique(df_full$staybias),
                    leavebias_posterior = draws_df$leavebias_posterior
                    )
     if(exists("param_leave_df")){param_leave_df <- rbind (param_leave_df, temp)} else {param_leave_df <- temp}
@@ -278,6 +306,136 @@ for (leavebias in unique(df$leavebias)){
 
 ```
 
+```{r}
+#Plot of leave bias
+ggplot(data=param_leave_df, aes(x=leavebias_true, y=inv.logit(leavebias_posterior))) +
+  facet_wrap(~ trials) + 
+  geom_point(size = 3, alpha = .3) +
+  geom_line(data = param_leave_df, aes(y = leavebias_true), color = 'red') + 
+  stat_summary(fun=mean,color = 'blue', geom = 'line', aes(group = 1)) + 
+  labs(x="True Parameter", y="Estimated Parameter", title = 'Parameter Recovery: LeaveBias')+ 
+  theme_bw()
+
+
+```
 
 #Parameter recovery: StayBias
 
+
+```{r}
+#maintain constant leavebias
+df_full <- recovery_trials_df[recovery_trials_df$leavebias == 0.7,]
+
+#loop trough different staybias
+for (staybias in unique(df_full$staybias)){
+  for (trial_n in c(10, 25, 50, 100, 200, 500, 1000, 2500, 5000)){
+    df <- df_full[df_full$staybias == staybias, ] 
+    
+    data <- list(
+      n = trial_n, 
+      k = df$Self[0:trial_n],
+      win = df$win[0:trial_n],
+      lose = df$lose[0:trial_n]
+    )
+    
+    samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 1,
+    parallel_chains = 1,
+    threads_per_chain = 1,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99)
+    
+    draws_df <- as_draws_df(samples$draws())
+    
+    temp <- tibble(staybias_true = staybias, 
+                   trials = trial_n, 
+                   leavebias_true = unique(df_full$leavebias),
+                   staybias_posterior = draws_df$staybias_posterior
+                   )
+    if(exists("param_stay_df")){param_stay_df <- rbind (param_stay_df, temp)} else {param_stay_df <- temp}
+  }  
+}
+
+```
+
+```{r}
+#Plot of staybias parameter recovery
+ggplot(data=param_stay_df, aes(x=staybias_true, y=inv.logit(staybias_posterior))) +
+  facet_wrap(~ trials) + 
+  geom_point(size = 3, alpha = .3) +
+  geom_line(data = param_stay_df, aes(y = staybias_true), color = 'red') + 
+  stat_summary(fun=mean,color = 'blue', geom = 'line', aes(group = 1)) + 
+  labs(x="True Parameter", y="Estimated Parameter", title = 'Parameter Recovery: StayBias')+ 
+  theme_bw()
+
+```
+
+
+#StayBias and LeaveBias: Parameter Recovery
+
+```{r}
+#loop trough different staybias
+for (staybias in unique(recovery_trials_df$staybias)){
+  for (leavebias in unique(recovery_trials_df$leavebias)){
+    df <- recovery_trials_df[recovery_trials_df$staybias == staybias & recovery_trials_df$leavebias == leavebias, ] 
+    
+    data <- list(
+      n = 120, 
+      k = df$Self[0:120],
+      win = df$win[0:120],
+      lose = df$lose[0:120]
+    )
+    
+    samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 1,
+    parallel_chains = 1,
+    threads_per_chain = 1,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99)
+    
+    draws_df <- as_draws_df(samples$draws())
+    
+    temp <- tibble(staybias_true = staybias, 
+                   leavebias_true = leavebias,
+                   staybias_posterior = draws_df$staybias_posterior,
+                   leavebias_posterior = draws_df$leavebias_posterior, 
+                   trials = 120
+                   )
+    if(exists("param_stay_leave_df")){param_stay_leave_df <- rbind (param_stay_leave_df, temp)} else {param_stay_leave_df <- temp}
+  }  
+}
+
+```
+
+```{r}
+#Plot of StayBias and LeaveBias
+ggplot(data=param_stay_leave_df, aes(x=staybias_true, y=inv.logit(staybias_posterior))) +
+  facet_wrap(~ leavebias_true) + 
+  geom_point(size = 3, alpha = .3) +
+  geom_line(data = param_stay_leave_df, aes(y = staybias_true), color = 'red') + 
+  stat_summary(fun=mean,color = 'blue', geom = 'line', aes(group = 1)) + 
+  labs(x="True Parameter: StayBias", y="Estimated Parameter: StayBias", title = 'Parameter Recovery: StayBias and LeaveBias')+ 
+  theme_bw()
+
+#Plot of StayBias and LeaveBias
+ggplot(data=param_stay_leave_df, aes(x=leavebias_true, y=inv.logit(leavebias_posterior))) +
+  facet_wrap(~ staybias_true) + 
+  geom_point(size = 3, alpha = .3) +
+  geom_line(data = param_stay_leave_df, aes(y = leavebias_true), color = 'red') + 
+  stat_summary(fun=mean,color = 'blue', geom = 'line', aes(group = 1)) + 
+  labs(x="True Parameter: LeaveBias", y="Estimated Parameter:LeaveBias", title = 'Parameter Recovery: StayBias and LeaveBias')+ 
+  theme_bw()
+
+
+
+```
