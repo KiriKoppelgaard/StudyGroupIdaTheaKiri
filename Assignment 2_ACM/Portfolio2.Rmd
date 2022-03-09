@@ -116,7 +116,7 @@ mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedanti
 
 ```
 
-```{r}
+```{r, eval = false}
 sensitivity_df <- NULL
 
 for (p in seq(nrow(priors))){
