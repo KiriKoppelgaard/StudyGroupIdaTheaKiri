@@ -1,16 +1,22 @@
 ---
-title: "Class 5"
+title: "Portfolio2"
 author: "KK"
-date: '2022-03-02'
+date: '2022-03-09'
 output: html_document
 ---
+During this assignment you wrap up the last few weeks of model exploration. You pick the model you have been working on and write a report:
 
-# Class 5
- In today’s class you will have to rely on your stan model from last week to
-§ Include output variables for prior and for predictive checks
-§ Include a prior sensitivity plot
-§ Perform parameter recovery, including a test of trials needed to *adequately* recover the true parameter values
-§ N.B. this might include many loops: range of true parameter values, range of noise levels, range of trials, range of n agents within the same condition, range of prior parameters. This could take forever to run. So you are allowed to only pick a few (hint: true parameter values and range of trial n is all is required)
+- describing the model (you can re-use text from assignment 1, if relevant) showcasing a commented version of the stan model (what does each line do?) 
+
+We here take a closer look at the win-stay-lose-shift model.
+
+- describing and motivating a process of parameter recovery (why are you doing it?, how are you doing it?) (nr of trials and combi of parameter values)
+
+- report parameter recovery
+
+- discussing the results: how many trials should be used at least to properly recover the parameters? Add relevant plot(s).
+
+#Load libraries
 ```{r}
 library(pacman)
 p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
@@ -31,7 +37,6 @@ df$lose[df$Feedback_Self == 0 & df$Self == 0] <- 1
 df$lose[df$Feedback_Self == 1] <- 0
 
 ```
-
 
 #Sensitivity check
 
@@ -180,36 +185,4 @@ ggplot(data=sensitivity_df, aes(x=prior_sd_bstay, y=inv.logit(bstay_posterior)))
 ```
 
 #Perform parameter recovery
-
-#Plots of prior and for predictive checks
-
-```{r, eval = FALSE}
-#Prior predictive check 
-ggplot(draws_df) + 
-  geom_histogram(aes(prior_preds),
-  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted heads out of 120 trials") + 
-  ylab("Posterior Density") + theme_classic()
-
-#Has the model learned from the data? 
-ggplot(draws_df) +
-  geom_density(aes(bstay_posterior), fill="blue", alpha=0.3) + 
-  geom_density(aes(bstay_prior), fill="red", alpha=0.3) +   xlab("Rate") +
-  ylab("Posterior Density") +
-  theme_classic()
-
-#Are the predictions alright?
-ggplot(draws_df) + geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
-  geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
-  xlab("Predicted heads out of 120 trials") + ylab("Posterior Density") + theme_classic()
-
-#Learning in the predictions
-ggplot(draws_df) +
-  geom_histogram(aes(prior_preds), color="lightblue", fill="blue", alpha=0.3, bins=90) +
-  geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
-  geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
-  xlab("Predicted heads out of 120 trials") + ylab("Density") +
-  theme_classic()
-
-```
-
 
