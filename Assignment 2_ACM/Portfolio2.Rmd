@@ -116,7 +116,7 @@ mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedanti
 
 ```
 
-```{r, eval = false}
+```{r, eval = FALSE}
 sensitivity_df <- NULL
 
 for (p in seq(nrow(priors))){
@@ -241,12 +241,12 @@ mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedanti
 
 ```{r}
 #maintain constant staybias
-df <- recovery_trials_df[recovery_trials_df$staybias == 0.7,]
+df_full <- recovery_trials_df[recovery_trials_df$staybias == 0.7,]
 #c(10, 25, 50, 100, 200, 500, 1000, 2500, 5000)
 
 for (leavebias in unique(df$leavebias)){
   for (trial_n in c(10)){
-    df <- df[df$leavebias == leavebias, ] 
+    df <- df_full[df_full$leavebias == leavebias, ] 
     
     data <- list(
       n = trial_n, 
