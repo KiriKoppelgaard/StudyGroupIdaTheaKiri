@@ -27,7 +27,7 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 #Load data and recode variables
 ```{r}
 df <- read.csv('data/simulated_data.csv')
-df <- df[0:120] #load data for single agent 
+df <- df[0:120, ] #load data for single agent 
 ```
 
 #Sensitivity check
