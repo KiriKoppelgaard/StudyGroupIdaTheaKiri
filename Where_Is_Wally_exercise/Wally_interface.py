@@ -15,7 +15,7 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 #---STREAMLIT INTERFACE
-st.markdown("<h1 style='text-align: center; color: red;'>Where is Wally?</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: black;'>Where is Wally?</h1>", unsafe_allow_html=True)
 st.write('Correct the AIs prediction of Wally by selecting a new area on the images below and pressing -Save-. ')
 
 #---SIDEBAR
@@ -28,6 +28,9 @@ imgs = glob.glob("images/*.jpg") #just the base images right now
 
 # Save model path
 model_path = './trained_model/frozen_inference_graph.pb'
+
+#plots in columns:
+left_column_upper, mid_column_upper,midr_column_upper, right_column_upper = st.columns(4)
 
 #Create functions
 detection_graph = tf.Graph()
@@ -53,9 +56,18 @@ if 'index' not in st.session_state:
 	st.session_state.index = 0
 
 #Create save button 
-save = st.button('Save')
+with right_column_upper:
+    save = st.button('Next image', help='Saving the image and loading the next. You can always go back and make corrections.')
 if save:
     st.session_state.index += 1
+with left_column_upper:
+    if st.button('Previous image', help='Go back to the previous image'):
+        st.write('I am just a dummy button :)')
+
+with midr_column_upper:
+    if st.button('This is my first time', help= 'Check this box for more elaborate instructions'):
+        st.write("The green box indicates where the algorithm located Wally. If you agree, you can move on to the next image. If you disagree, you can correct the location by placing a square around Wally's face. Click and drag the mouse to make a square.")
+
 
 with detection_graph.as_default():
   with tf.compat.v1.Session(graph=detection_graph) as sess:
@@ -99,25 +111,31 @@ canvas_result = st_canvas(
     background_image=Image.open(f'{imgs[st.session_state.index]}.png') if f'{imgs[st.session_state.index]}.png' else None,
     update_streamlit=False,
     height=500,
-    width=700,
+    width=750,
     drawing_mode='rect',
     point_display_radius= 0,
     key="canvas",
-    stroke_width= 1,
+    stroke_width= 2,
 )
 
 # Do something interesting with the image data and paths
 #if canvas_result.image_data is not None:
-    #st.image(canvas_result.image_data)
+#    st.image(canvas_result.image_data)
 #if canvas_result.json_data is not None:
 #    objects = pd.json_normalize(canvas_result.json_data["objects"]) # need to convert obj to str because PyArrow
 #    for col in objects.select_dtypes(include=['object']).columns:
 #        objects[col] = objects[col].astype("str")
-    #st.dataframe(objects)
+#    st.dataframe(objects)
+
 
 #Create function to save positions of drawing
-#def save_corrected_data(dataframe):
-#    dataframe.to_csv('data/hejehj.csv')
+def save_corrected_data(dataframe):
+    dataframe.to_csv('data/hybrid_data.csv')
+left_column_lower, mid_column_lower, right_column_lower = st.columns(3)
+with mid_column_lower:
+    if st.button('Export hybrid intelligent data', help='Exports the updated coordinates as a .csv and stores it in the data folder'):
+        save_corrected_data(objects)
+
 
 
 
