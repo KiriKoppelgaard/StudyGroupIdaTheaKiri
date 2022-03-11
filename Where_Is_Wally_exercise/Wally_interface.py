@@ -16,7 +16,10 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 #---STREAMLIT INTERFACE
 st.markdown("<h1 style='text-align: center; color: black;'>Where is Wally?</h1>", unsafe_allow_html=True)
-st.write('Correct the AIs prediction of Wally by selecting a new area on the images below and pressing -Save-. ')
+
+#Add instructions
+with st.expander('Help! This is my first time', expanded=False): 
+    st.write("The green box indicates where the algorithm located Wally. If you agree, you can move on to the next image. If you disagree, you can correct the location by placing a square around Wally's face. Click and drag the mouse to make a square.")
 
 #---SIDEBAR
 #realtime_update = st.checkbox("Update in realtime", True)
@@ -61,12 +64,9 @@ with right_column_upper:
 if save:
     st.session_state.index += 1
 with left_column_upper:
-    if st.button('Previous image', help='Go back to the previous image'):
-        st.write('I am just a dummy button :)')
-
-with midr_column_upper:
-    if st.button('This is my first time', help= 'Check this box for more elaborate instructions'):
-        st.write("The green box indicates where the algorithm located Wally. If you agree, you can move on to the next image. If you disagree, you can correct the location by placing a square around Wally's face. Click and drag the mouse to make a square.")
+    previous = st.button('Previous image', help='Go back to the previous image')
+if previous:
+    st.session_state.index -= 1
 
 
 with detection_graph.as_default():
@@ -104,7 +104,15 @@ with detection_graph.as_default():
     plt.show()
     plt.savefig(f'{imgs[st.session_state.index]}.png')
 
-
+current_score = round(100 * float(scores[0][0]), 1)
+if current_score > 90: 
+    st.subheader(f'The algorithm is {current_score} % certain!✅')
+    
+elif current_score < 90 and current_score > 30:
+    st.subheader(f'The algorithm is {current_score} % certain!🤔')
+else: 
+    st.subheader(f'The algorithm is {current_score} % certain! ⛔')
+    
 #Create a canvas component
 canvas_result = st_canvas(
     fill_color="rgba(255, 165, 0, 0.3)", # Fixed fill color with some opacity
@@ -136,7 +144,28 @@ with mid_column_lower:
     if st.button('Export hybrid intelligent data', help='Exports the updated coordinates as a .csv and stores it in the data folder'):
         save_corrected_data(objects)
 
+#Add instructions
+with st.expander('Learn more about the design', expanded=False): 
+    st.image('flowchart.png')
+    st.markdown("<h1 style='text-align: center; color: black;'>HOW OUR SOLUTION RELATES TO THE FOUR AKATA CRITERIA</h1>", unsafe_allow_html=True)
 
+    text = '''
+    \n**Collaborative**
+    \n Our collaborative solution combines the strengths of:
+    \n- _the AI (the neural network):_ quickly identify the point in a big image which is most likely to contain Wally + report certainty
+    \n- _the human_: quickly and intuitively check doubt cases, and correct the AI where it’s wrong. Human task is smaller since the big hurdle of scanning a full detailed image has been outsourced to the computer, and the human can focus on doubt cases.
+    This human-computer collaboration can quickly and accurately locate Wally in a large selection of images.
+    \n**Adaptive**
+    \n Our solution could be extended to adapt to the user input.
+    \n - _Synergy_: the feedback from the human (where was Wally actually?) could ideally be fed back into the network (as a ‘true label’) to make it perform better over time!
+    Potentially, it could also utilize transfer learning and adapt to find other targets - for example Wanda - by using user input!
+    \n**Responsible**
+    \nLegal and moral values aren’t really relevant for this specific case, and no ethics are involved.
+    \n**Explainable**
+    \n Our solution could be expanded to be more explainable. Ideally, the NN should be able to say WHY it thinks Wally is in a particular place.
+    For example by highlighting the pixels of the guess that makes it most confident that this is Wally.
+        e.g. maybe it’s the striped shirt, and not the face.
 
-
+    '''
+    st.write(text)
 
