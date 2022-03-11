@@ -23,14 +23,14 @@ wsls_agent <- function(self_prev_choice, feedback, staybias, leavebias, noise=0)
   #feedback = 0 (no match/loss) or 1 (match/win) from previous round
   
   #---IDA TRYING
-  if (feedback == 1) {
-    choice <- rbinom(1,self_prev_choice, staybias) #choose the same as last time with staybias likelihood
-    if (choice != self_prev_choice) { #if you chose to leave:
-      choice <- rbinom(1,1,0.5) #choose 1 with 50% chance (so choose randomly)
-    }
+#  if (feedback == 1) {
+#    choice <- rbinom(1,self_prev_choice, staybias) #choose the same as last time with staybias likelihood
+#    if (choice != self_prev_choice) { #if you chose to leave:
+#      choice <- rbinom(1,1,0.5) #choose 1 with 50% chance (so choose randomly)
+#    }
 
-    
-  }
+#    
+#  }
   #---
   
   if (feedback == 1) {
