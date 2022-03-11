@@ -23,12 +23,15 @@ wsls_agent <- function(self_prev_choice, feedback, staybias = 0.8, leavebias = 0
   #feedback = 0 (no match/loss) or 1 (match/win) from previous round
   
   if (feedback == 1) {
-    choice <- rbinom(1, self_prev_choice, staybias) 
-    
-    #if last round was win, keep same choice
+      choice <- ifelse(rbinom(1, self_prev_choice, staybias) == self_prev_choice,
+      self_prev_choice,
+      rbinom(1, 1, 0.5))
   }
+  
   else if (feedback == 0) {
-    choice <- rbinom(1, 1 - self_prev_choice, leavebias)  #if last round was loss, make opposite choice
+    choice <- ifelse(rbinom(1, 1 - self_prev_choice, leavebias) == 1 - self_prev_choice,
+                     1 - self_prev_choice,
+                     rbinom(1, 1, 0.5))
   }
   
   #noise, chance of choosing randomly:
