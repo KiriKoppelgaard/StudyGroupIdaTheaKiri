@@ -5,7 +5,7 @@ source('src/agent_strategies.R')
 library(tidyverse)
 
 ## bias_detector_agent with random_agent
-play <- function(Self_agent, Other_agent, n_trials, n_agents, leavebias, staybias) {
+play <- function(Self_agent, Other_agent, n_trials, n_agents, staybias, leavebias) {
 
   for (agent in seq(n_agents)){
     
@@ -54,7 +54,7 @@ play <- function(Self_agent, Other_agent, n_trials, n_agents, leavebias, staybia
         Self[i] <- copy_agent(prev_choice = Other[i-1], noise=0.1)
       
       } else if (Self_agent =='wsls_agent'){
-        Self[i] <- wsls_agent(self_prev_choice = Self[i-1], feedback = Feedback, leavebias = leavebias, staybias = staybias, noise=0)
+        Self[i] <- wsls_agent(self_prev_choice = Self[i-1], feedback = Feedback, staybias = staybias, leavebias = leavebias, noise=0)
       }
       
       #Other agent: Define agent functions
@@ -83,7 +83,7 @@ play <- function(Self_agent, Other_agent, n_trials, n_agents, leavebias, staybia
     }
     
     #Save outcome
-    temp <- tibble(Self_agent, Self, Other_agent, Other, trial = seq(n_trials), Feedback_Self = as.numeric(Self==Other), agent, leavebias, staybias)
+    temp <- tibble(Self_agent, Self, Other_agent, Other, trial = seq(n_trials), Feedback_Self = as.numeric(Self==Other),  agent, staybias, leavebias)
   
     #Append after first agent
     if (agent==1 ){df1 <- temp} else {df1 <- bind_rows(df1, temp)}
@@ -96,23 +96,24 @@ agents = c('bias_detector_agent', 'ws2ls_agent', 'copy_agent', 'anti_agent', 'ra
 
 for (leavebias in seq(0, 1, 0.1)){ 
   for (staybias in seq(0, 1, 0.1)){ 
-    play(Self_agent = 'wsls_agent', Other_agent = 'random_agent', n_trials = 5000, n_agents = 1, leavebias = leavebias, staybias = staybias)
+    play(Self_agent = 'wsls_agent', Other_agent = 'random_agent', n_trials = 200, n_agents = 1, staybias = staybias, leavebias = leavebias)
   }
 }
 
 
+
 for (file in list.files(path = 'data/')){
   temp <- read.csv(paste('data/', file, sep = ''))
-  
+
   #Recoding variables to stay and leave bias: 1 = heads, -1 = tails
   temp$win[temp$Feedback_Self == 1 & temp$Self == 1] <- 1
   temp$win[temp$Feedback_Self == 1 & temp$Self == 0] <- -1
   temp$win[temp$Feedback_Self == 0] <- 0
-  
+
   temp$lose[temp$Feedback_Self == 0 & temp$Self == 1] <- -1
   temp$lose[temp$Feedback_Self == 0 & temp$Self == 0] <- 1
   temp$lose[temp$Feedback_Self == 1] <- 0
-  
+
   if(exists("recovery_df")){recovery_df <- rbind(recovery_df, temp)} else {recovery_df <- temp}
   file.remove(paste('data/', file, sep = ''))
 }
