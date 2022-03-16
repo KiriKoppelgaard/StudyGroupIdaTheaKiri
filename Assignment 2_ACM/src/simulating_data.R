@@ -15,6 +15,8 @@ play <- function(Self_agent, Other_agent, n_trials, n_agents, staybias, leavebia
     past_outcomes_other <- NULL
     past_outcomes_self <- NULL
     old_feedback <- NULL
+    win <- rep(NA, n_trials)
+    lose <- rep(NA, n_trials)
     
     
     #specify first action, this is random (as implemented with random agent)
@@ -23,17 +25,27 @@ play <- function(Self_agent, Other_agent, n_trials, n_agents, staybias, leavebia
     
     if(Self[1] == Other[1]){
        Feedback = 1
+       win[1] <- NA
+       lose[1] <- NA
      } else {
       Feedback = 0
+      lose[1] <-  NA
+      win[1] <- NA
     }
     
     #Loop through trials after first random trial: 
     for (i in 2:n_trials){
       old_feedback <- Feedback
-      
+      #Define feedback: match = 1, mismatch = 0
       if (Self[i-1] == Other[i-1]){
         Feedback = 1
-      } else {Feedback = 0} #Define feedback: match = 1, mismatch = 0
+        win[i] <- ifelse(Self[i-1]==1, 1, -1)
+        lose[i] <- 0
+      } else {
+        Feedback = 0
+        lose[i] <-  ifelse(Self[i-1]==1, -1, 1)
+        win[i] <- 0
+        } 
       
       #Self agent: Define agent functions
       if (Self_agent == 'bias_detector_agent'){
@@ -83,44 +95,39 @@ play <- function(Self_agent, Other_agent, n_trials, n_agents, staybias, leavebia
     }
     
     #Save outcome
-    temp <- tibble(Self_agent, Self, Other_agent, Other, trial = seq(n_trials), Feedback_Self = as.numeric(Self==Other),  agent, staybias, leavebias)
+    temp <- tibble(Self_agent, Self, Other_agent, Other, trial = seq(n_trials), 
+                   Feedback_Self = as.numeric(Self==Other),  agent, staybias, leavebias, win, lose)
   
     #Append after first agent
     if (agent==1 ){df1 <- temp} else {df1 <- bind_rows(df1, temp)}
     
   }
+  df1$SelfPrev <- lag(df1$Self,1)
   write.csv(df1, paste('data/', Self_agent, '_', Other_agent, leavebias, '_', staybias, '.csv', sep = ''), row.names = FALSE)
 }
 
-agents = c('bias_detector_agent', 'ws2ls_agent', 'copy_agent', 'anti_agent', 'random_agent', 'wsls_agent')
-
 for (leavebias in seq(0, 1, 0.1)){ 
   for (staybias in seq(0, 1, 0.1)){ 
-    play(Self_agent = 'wsls_agent', Other_agent = 'random_agent', n_trials = 200, n_agents = 1, staybias = staybias, leavebias = leavebias)
+    play(Self_agent = 'wsls_agent', Other_agent = 'random_agent', n_trials = 5000, n_agents = 1, staybias = staybias, leavebias = leavebias)
   }
 }
 
-
-
+#binding one data frame
 for (file in list.files(path = 'data/')){
   temp <- read.csv(paste('data/', file, sep = ''))
-
-  #Recoding variables to stay and leave bias: 1 = heads, -1 = tails
-  temp$win[temp$Feedback_Self == 1 & temp$Self == 1] <- 1
-  temp$win[temp$Feedback_Self == 1 & temp$Self == 0] <- -1
-  temp$win[temp$Feedback_Self == 0] <- 0
-
-  temp$lose[temp$Feedback_Self == 0 & temp$Self == 1] <- -1
-  temp$lose[temp$Feedback_Self == 0 & temp$Self == 0] <- 1
-  temp$lose[temp$Feedback_Self == 1] <- 0
-
-  if(exists("recovery_df")){recovery_df <- rbind(recovery_df, temp)} else {recovery_df <- temp}
+  if(exists("recovery_df")){recovery_df <- rbind(recovery_df, temp)
+  } else {recovery_df <- temp}
   file.remove(paste('data/', file, sep = ''))
 }
 
 write.csv(recovery_df, paste('data/', 'simulated_data.csv', sep = ''), row.names = FALSE)
 
+#play one agent against another
+play(Self_agent = 'wsls_agent', Other_agent = 'random_agent', n_trials = 1000, n_agents = 1, staybias = 0.5, leavebias = 0.5)
 
+#looping through all agents
+
+#agents = c('bias_detector_agent', 'ws2ls_agent', 'copy_agent', 'anti_agent', 'random_agent', 'wsls_agent')
 #for (agent in agents){
 #  Self_agent = 'wsls_agent'
 #  Other_agent = agent

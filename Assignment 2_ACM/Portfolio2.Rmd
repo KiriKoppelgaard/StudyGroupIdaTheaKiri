@@ -17,18 +17,19 @@ We here take a closer look at the win-stay-lose-shift model.
 
 - discussing the results: how many trials should be used at least to properly recover the parameters? Add relevant plot(s).
 
-#Load libraries and data
+#Load libraries and data for a single agent to do sensitivity checks
 ```{r}
 library(pacman)
 p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
-df <- read.csv('data/simulated_data.csv')
-df <- df[0:120, ] #load data for single agent 
-```
 
+#load data, specify the biases
+single_agent <- na.omit(read.csv('data/simulated_data.csv') %>% filter(leavebias==0.5 & staybias ==0.5))
+single_agent <- single_agent[1:500,]
+
+```
 
 #Sensitivity check
 Create prior values to loop trough during sensitivity check. 
-
 ```{r}
 
 #Create priors 
@@ -37,7 +38,6 @@ prior_sd_bstay <- seq(0.1, 1, 0.1)
 
 #Create all possible combinations 
 priors <- expand.grid(prior_mean_bstay, prior_sd_bstay)
-
 
 #reshape the data
 priors <- tibble(prior_mean_bstay = priors$Var1, prior_sd_bstay=priors$Var2)
@@ -48,7 +48,7 @@ priors <- tibble(prior_mean_bstay = priors$Var1, prior_sd_bstay=priors$Var2)
 #STAN model
 Define the STAN-model of WSLS. 
 ```{r}
-stan_file <- write_stan_file("
+stan_file_single <- write_stan_file("
 // This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
 
 // The input data is two integer numbers: n and k.
@@ -100,9 +100,12 @@ generated quantities{
 }
 
 ")
+```
 
+
+```{r}
 #Compile the model
-mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+mod_single <- cmdstan_model(stan_file_single, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 
 ```
 
@@ -113,27 +116,28 @@ Technically you could access parameter values all four possible conditions as fo
 #Draw posterior distributions
 ```{r}
 sensitivity_df <- NULL
+trials_n <- nrow(single_agent)
 
 for (p in seq(nrow(priors))){
   data <- list(
-    n = 120, 
-    k = df$Self[0:120],
-    win = df$win[0:120],
-    lose = df$lose[0:120],
+    n = trials_n, 
+    k = single_agent$Self[1:trials_n],
+    win = single_agent$win[1:trials_n],
+    lose = single_agent$lose[1:trials_n],
     prior_mean_bstay = priors$prior_mean_bstay[p],
     prior_sd_bstay = priors$prior_sd_bstay[p]
   )
   
-  samples <- mod$sample(
+  samples <- mod_single$sample(
   data = data,
   seed = 123,
-  chains = 1,
-  parallel_chains = 1,
-  threads_per_chain = 1,
-  iter_warmup = 1000,
-  iter_sampling = 1000,
-  refresh = 1000,
-  max_treedepth = 20,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 500,
+  iter_sampling = 500,
+  refresh = 500,
+  max_treedepth = 15,
   adapt_delta = 0.99)
   
   draws_df <- as_draws_df(samples$draws())
@@ -187,29 +191,34 @@ ggplot(draws_df) +
   geom_density(aes(bstay_prior), fill="red", alpha=0.3) +   xlab("Rate") +
   ylab("Posterior Density") +
   theme_classic()
-
-#Are the predictions alright?
-ggplot(draws_df) + geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
-  geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
-  xlab("Predicted heads out of 120 trials") + ylab("Posterior Density") + theme_classic()
-
-#Learning in the predictions
-ggplot(draws_df) +
-  geom_histogram(aes(prior_preds), color="lightblue", fill="blue", alpha=0.3, bins=90) +
-  geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
-  geom_point(x = sum(df$Self[0:120]), y = 0, color="red", shape = 17, size = 5) +
-  xlab("Predicted heads out of 120 trials") + ylab("Density") +
-  theme_classic()
+# 
+# #Are the predictions alright?
+# ggplot(draws_df) + geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
+#   geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
+#   xlab("Predicted heads out of 120 trials") + ylab("Posterior Density") + theme_classic()
+# 
+# #Learning in the predictions
+# ggplot(draws_df) +
+#   geom_histogram(aes(prior_preds), color="lightblue", fill="blue", alpha=0.3, bins=90) +
+#   geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
+#   geom_point(x = sum(df$Self[0:120]), y = 0, color="red", shape = 17, size = 5) +
+#   xlab("Predicted heads out of 120 trials") + ylab("Density") +
+#   theme_classic()
 
 ```
 
 
-
-#Perform parameter recovery
+#Perform parameter recovery with all combinations of leavebias and staybias
 ```{r}
 #Load simulated data with different rates
 recovery_trials_df <- read.csv('data/simulated_data.csv')
 
+#removing NAs
+recovery_trials_df <- na.omit(recovery_trials_df)
+
+#checking that they work as intended
+y <- recovery_trials_df %>% group_by(staybias, win) %>% dplyr::summarise(rate=mean(Self))
+ggplot(na.omit(y), aes(staybias,rate)) +geom_point() +facet_grid(.~win)
 ```
 
 
@@ -260,33 +269,36 @@ generated quantities{
 
 ")
 
+```
+
+```{r}
 #Compile the model
 mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 ```
 
-#Parameter recovery: LeaveBias
+# Parameter recovery: LeaveBias
 
 ```{r}
 #maintain constant staybias
 df_full <- recovery_trials_df[recovery_trials_df$staybias == 0.7,]
 
 for (leavebias in unique(df_full$leavebias)){
-  for (trial_n in c(10, 25, 50, 100, 200, 500, 1000, 2500, 5000)){
+  for (trial_n in c(10, 25, 50, 100, 200, 500, 1000, 2500, 4900)){
     df <- df_full[df_full$leavebias == leavebias, ] 
     
     data <- list(
-      n = trial_n, 
-      k = df$Self[0:trial_n],
-      win = df$win[0:trial_n],
-      lose = df$lose[0:trial_n]
+      n = as.numeric(trial_n-1), 
+      k = df$Self[2:trial_n],
+      win = df$win[2:trial_n],
+      lose = df$lose[2:trial_n]
     )
     
     samples <- mod$sample(
     data = data,
     seed = 123,
-    chains = 1,
-    parallel_chains = 1,
-    threads_per_chain = 1,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
     iter_warmup = 1000,
     iter_sampling = 1000,
     refresh = 1000,
@@ -311,16 +323,14 @@ for (leavebias in unique(df_full$leavebias)){
 ggplot(data=param_leave_df, aes(x=leavebias_true, y=inv.logit(leavebias_posterior))) +
   facet_wrap(~ trials) + 
   geom_point(size = 3, alpha = .3) +
-  geom_line(data = param_leave_df, aes(y = leavebias_true), color = 'red') + 
+  geom_abline(intercept = 0.5, slope =0.5, color = 'red',linetype="dashed") +
   stat_summary(fun=mean,color = 'blue', geom = 'line', aes(group = 1)) + 
   labs(x="True Parameter", y="Estimated Parameter", title = 'Parameter Recovery: LeaveBias')+ 
   theme_bw()
 
-
 ```
 
 #Parameter recovery: StayBias
-
 
 ```{r}
 #maintain constant leavebias
@@ -328,14 +338,14 @@ df_full <- recovery_trials_df[recovery_trials_df$leavebias == 0.7,]
 
 #loop trough different staybias
 for (staybias in unique(df_full$staybias)){
-  for (trial_n in c(10, 25, 50, 100, 200, 500, 1000, 2500, 5000)){
+  for (trial_n in c(10, 25, 50, 100, 200, 500, 1000, 2500, 4900)){
     df <- df_full[df_full$staybias == staybias, ] 
     
     data <- list(
-      n = trial_n, 
-      k = df$Self[0:trial_n],
-      win = df$win[0:trial_n],
-      lose = df$lose[0:trial_n]
+      n = as.numeric(trial_n-1), 
+      k = df$Self[2:trial_n],
+      win = df$win[2:trial_n],
+      lose = df$lose[2:trial_n]
     )
     
     samples <- mod$sample(
@@ -368,7 +378,7 @@ for (staybias in unique(df_full$staybias)){
 ggplot(data=param_stay_df, aes(x=staybias_true, y=inv.logit(staybias_posterior))) +
   facet_wrap(~ trials) + 
   geom_point(size = 3, alpha = .3) +
-  geom_line(data = param_stay_df, aes(y = staybias_true), color = 'red') + 
+  geom_abline(intercept = 0.5, slope =0.5, color = 'red',linetype="dashed") + 
   stat_summary(fun=mean,color = 'blue', geom = 'line', aes(group = 1)) + 
   labs(x="True Parameter", y="Estimated Parameter", title = 'Parameter Recovery: StayBias')+ 
   theme_bw()
@@ -386,9 +396,9 @@ for (staybias in unique(recovery_trials_df$staybias)){
     
     data <- list(
       n = 120, 
-      k = df$Self[0:120],
-      win = df$win[0:120],
-      lose = df$lose[0:120]
+      k = df$Self[2:120],
+      win = df$win[2:120],
+      lose = df$lose[2:120]
     )
     
     samples <- mod$sample(
