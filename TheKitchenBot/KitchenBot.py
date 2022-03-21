@@ -15,6 +15,7 @@ import transformers
 import os
 import datetime
 import numpy as np
+import time
 
 # open the recipe files
 ing_file = open(os.path.join('Recipes', 'french pound cake', 'ingredients.txt'), "r")
@@ -34,18 +35,7 @@ class ChatBot():
     def __init__(self, name):
         print("--- starting up", name, "---")
         self.name = name
-
-    def speech_to_text(self):
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as mic:
-            print("listening...")
-            audio = recognizer.listen(mic)
-        try:
-            self.text = recognizer.recognize_google(audio)
-            print("me --> ", self.text)
-        except:
-            print("me -->  ERROR")
-
+    
     @staticmethod
     def text_to_speech(text):
         print("ai --> ", text)
@@ -53,6 +43,19 @@ class ChatBot():
         speaker.save("res.mp3")
         os.system("afplay res.mp3")  #mac->afplay | windows->start
         os.remove("res.mp3")
+    
+    def speech_to_text(self):
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as mic:
+            print("listening...")
+            audio = recognizer.listen(mic)
+            time.sleep(3)
+            ai.text_to_speech(np.random.choice(["amen sister","aha", "yes yes"]))
+        try:
+            self.text = recognizer.recognize_google(audio)
+            print("me --> ", self.text)
+        except:
+            print("me -->  ERROR")
 
     def wake_up(self, text):
         return True if self.name in text.lower() else False
@@ -74,13 +77,18 @@ if __name__ == "__main__":
 
         ## wake up
         if ai.wake_up(ai.text) is True:
-            res = '''Hi. My name is Maya. I am your new culinary assistant,
-           I can help you get around in the kitchen. 
-           Right now, I am not very socially competent, but hopefully, you can make me more natural to interact with.'''
+            res = 'Hi. My name is Maya. How are you feeling todady my friend?'
         
 
         ### Here is where you can hardcode responses 
+        elif "sad" in ai.text:
+            res = '''Well, I can relate. You can always talk to me. And I can order comfort food.'''
+        elif "happy" in ai.text:
+            res = '''Being happy is my favorite feeling. When you are happy, I am happy.'''
 
+
+
+        
         ## ask for the time
         elif "time" in ai.text:
             res = ai.action_time()
@@ -121,3 +129,4 @@ if __name__ == "__main__":
             res = res[res.find("bot >> ")+6:].strip()
 
         ai.text_to_speech(res)
+        
