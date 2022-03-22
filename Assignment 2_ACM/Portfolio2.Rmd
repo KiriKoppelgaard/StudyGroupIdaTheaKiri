@@ -157,6 +157,7 @@ for (p in seq(nrow(priors))){
 
 #Prior sensitivity plot
 ```{r}
+
 #Plot of mean
 ggplot(data=sensitivity_df, aes(x=prior_mean_bstay, y=inv.logit(bstay_posterior))) +
   facet_wrap(~ prior_sd_bstay) + 
@@ -179,31 +180,21 @@ ggplot(data=sensitivity_df, aes(x=prior_sd_bstay, y=inv.logit(bstay_posterior)))
 #Plots of prior and for predictive checks
 
 ```{r}
+#Subset the data
+prior_data <- sensitivity_df[sensitivity_df$prior_mean_bstay == 0 & round(sensitivity_df$prior_sd_bstay, 1) == 0.3, ]
+
 #Prior predictive check 
-ggplot(draws_df) + 
+ggplot(prior_data) + 
   geom_histogram(aes(prior_preds),
-  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted heads out of 120 trials") + 
+  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted heads out of 500 trials") + 
   ylab("Posterior Density") + theme_classic()
 
 #Has the model learned from the data? 
-ggplot(draws_df) +
+ggplot(prior_data) +
   geom_density(aes(bstay_posterior), fill="blue", alpha=0.3) + 
   geom_density(aes(bstay_prior), fill="red", alpha=0.3) +   xlab("Rate") +
   ylab("Posterior Density") +
   theme_classic()
-# 
-# #Are the predictions alright?
-# ggplot(draws_df) + geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
-#   geom_point(x = sum(data$k), y = 0, color="red", shape = 17, size = 5) +
-#   xlab("Predicted heads out of 120 trials") + ylab("Posterior Density") + theme_classic()
-# 
-# #Learning in the predictions
-# ggplot(draws_df) +
-#   geom_histogram(aes(prior_preds), color="lightblue", fill="blue", alpha=0.3, bins=90) +
-#   geom_histogram(aes(posterior_preds), color="darkblue", fill="blue", alpha=0.3, bins=90) +
-#   geom_point(x = sum(df$Self[0:120]), y = 0, color="red", shape = 17, size = 5) +
-#   xlab("Predicted heads out of 120 trials") + ylab("Density") +
-#   theme_classic()
 
 ```
 
