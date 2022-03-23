@@ -79,11 +79,10 @@ d %>% group_by(Block) %>% summarise(sum(BotDecision))
 head(penny_data[penny_data$ID==218])
 ```
 
-#fit multilevel WSLS model
+#specify multilevel WSLS model for STAN
 ```{r}
 stan_wsls_multi <- write_stan_file("
 // This Stan model infers alpha, beta_stay and beta_leave for agents from a number of trials (n) and successes (k)
-
 
 // A function used for truncating SD later
 functions {
@@ -93,7 +92,6 @@ functions {
     return (sigma * inv_Phi(u)) + mu; // inverse cdf for value
   }
 }
-
 
 // The input (data) for the model
 data {
@@ -118,92 +116,79 @@ parameters {
   array[agents] real beta_leave;
 }
 
-transformed parameters{
-  vector[n] theta;
-  theta = alpha + (beta_stay*win)+ (beta_leave*lose); //multiplying the parameters we want to estimate in the data
-}
-
 // The model to be estimated; prior and likelihood
 model {
-  // The prior for theta is a uniform distribution between 0 and 1
-  target += normal_lpdf(alpha | 0, 1);
-  target += normal_lpdf(beta_stay | prior_mean_bstay, prior_sd_bstay);
-  target += normal_lpdf(beta_leave | 0, 0.3);
+  // Priors: 
+  target += normal_lpdf(alphaM | 0, 1); 
+  target += normal_lpdf(alphaSD | 0, 0.3) - normal_lccdf(0|0, .3); 
 
-  // The model consists of a binomial distribution with a rate theta, 
-  // and a number of trials n generating k successes
-  target += bernoulli_logit_lpmf(k | theta);
+  target += normal_lpdf(beta_stayM | 0, 1); 
+  target += normal_lpdf(beta_staySD | 0, 0.3) - normal_lccdf(0|0, .3); 
+
+  target += normal_lpdf(beta_leaveM | 0, 1); 
+  target += normal_lpdf(beta_leaveSD | 0, 0.3) - normal_lccdf(0|0, .3); 
+
+  //The priors for alpha and beta
+  target += normal_lpdf(alpha | alphaM, alphaSD);
+  target += normal_lpdf(beta_stay | beta_stayM, beta_staySD);
+  target += normal_lpdf(beta_leave | beta_leaveM, beta_leaveSD);
+
+  // The model
+  for (i in agents)
+    target += bernoulli_logit_lpmf(decision[,i] | alpha[i] + to_vector(win[,i]*beta_stay[i]) + to_vector(lose[,i]*beta_leave[i]));
 }
 
+// GENERATED QUANTITIES
 generated quantities{
-  real bstay_prior;
-  real bstay_posterior;
-  int<lower=0, upper=n> prior_preds;
-  array[n] int <lower=0, upper=n> posterior_preds;
+  real alphaM_prior; 
+  real<lower=0> alphaSD_prior; 
 
-  bstay_prior = normal_rng(0,1);
-  bstay_posterior = beta_stay;
-  
-  prior_preds = binomial_rng(n, inv_logit(bstay_prior));
-  posterior_preds = binomial_rng(n, inv_logit(theta));
-}
+  real beta_stayM_prior; 
+  real<lower=0> beta_staySD_prior;
+
+  real beta_leaveM_prior; 
+  real<lower=0> beta_leaveSD_prior;
+
+  real alpha_prior; 
+  real beta_stay_prior;
+  real beta_leave_prior;
+
+  array[trials,agents] int<lower=0, upper = trials> prior_preds;
+  array[trials,agents] int<lower=0, upper = trials> posterior_preds; 
+
+  alphaM_prior = normal_rng(0,1); 
+  alphaSD_prior = normal_lb_rng(0,0.3,0); 
+  beta_stayM_prior = normal_rng(0,1); 
+  beta_staySD_prior = normal_lb_rng(0,0.3,0);
+  beta_leaveM_prior = normal_rng(0,1); 
+  beta_leaveSD_prior = normal_lb_rng(0,0.3,0);
+
+  alpha_prior = inv_logit(normal_rng(alphaM_prior, alphaSD_prior)); 
+  beta_stay_prior = normal_rng(beta_stayM_prior, beta_staySD_prior);
+  beta_leave_prior = normal_rng(beta_leaveM_prior, beta_leaveSD_prior);
+
+  for (i in 1:agents) 
+    prior_preds[,i] = binomial_rng(trials, inv_logit(alpha_prior + to_vector(win[,i]) * beta_stay_prior) + inv_logit(to_vector(lose[,i]) * beta_leave_prior));
+
+  for (i in 1:agents) 
+    posterior_preds[,i] = binomial_rng(trials, inv_logit(alpha[i] + to_vector(win[,i]) * beta_stay[i]) + inv_logit(to_vector(lose[,i]) * beta_leave[i]));
+
+} 
 
 ")
 ```
 
-
+#compile the WSLS  stan model
 ```{r}
-#Compile the model
-mod_single <- cmdstan_model(stan_file_single, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+mod_wsls_multi <- cmdstan_model(stan_wsls_multi, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 
 ```
 
-Technically you could access parameter values all four possible conditions as follows: 
-
-- posteriorWH_preds = binomial_rng(n, inv_logit(alpha + beta_stay*1 + beta_leave*0));
-
-#Draw posterior distributions
-```{r}
-sensitivity_df <- NULL
-trials_n <- nrow(single_agent)
-
-for (p in seq(nrow(priors))){
-  data <- list(
-    n = trials_n, 
-    k = single_agent$Self[1:trials_n],
-    win = single_agent$win[1:trials_n],
-    lose = single_agent$lose[1:trials_n],
-    prior_mean_bstay = priors$prior_mean_bstay[p],
-    prior_sd_bstay = priors$prior_sd_bstay[p]
-  )
-  
-  samples <- mod_single$sample(
-  data = data,
-  seed = 123,
-  chains = 2,
-  parallel_chains = 2,
-  threads_per_chain = 2,
-  iter_warmup = 500,
-  iter_sampling = 500,
-  refresh = 500,
-  max_treedepth = 15,
-  adapt_delta = 0.99)
-  
-  draws_df <- as_draws_df(samples$draws())
-  
-  temp <- tibble(bstay_prior = draws_df$bstay_prior, 
-                 bstay_posterior = draws_df$bstay_posterior,
-                 prior_preds = draws_df$prior_preds, 
-                 posterior_preds = draws_df$posterior_preds, 
-                 prior_mean_bstay = priors$prior_mean_bstay[p],
-                 prior_sd_bstay = priors$prior_sd_bstay[p]
-                 )
-  if(exists("sensitivity_df")){sensitivity_df <- rbind (sensitivity_df, temp)} else {sensitivity_df <- temp}
-  
-}
 
 
-```
+
+
+
 
 #fit multilevel random bias model
 ```{r}
