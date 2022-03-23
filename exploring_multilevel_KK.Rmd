@@ -83,20 +83,35 @@ data {
 // The parameters accepted by the model.
 
 parameters {
-  real alpha; // intercept
-  real beta_stay; // the propensity to stay, given the agent won
-  real beta_leave; //the propensity to leave, given the agent lost
+  real alphaM; // intercept: Mean
+  real <lower = 0> alphaSD; // intercept: SD
+  real beta_stayM; // beta_stay: Mean
+  real <lower = 0> beta_staySD; // beta_stay: SD
+  real beta_leaveM; // beta_leave: Mean
+  real <lower = 0> beta_leaveSD; // beta_leave: SD
+
+  array[agents] real alpha;
+  array[agents] real beta_stay;
+  array[agents] real beta_leave;
 }
 
 
 // The model to be estimated; prior and likelihood
 model {
   // Priors: 
-  target += normal_lpdf(alpha | 0, 1); 
+  target += normal_lpdf(alphaM | 0, 1); 
+  target += normal_lpdf(alphaSD | 0, 0.3) - normal_lccdf(0|0, .3); 
 
-  target += normal_lpdf(beta_stay | 0, 0.3); // setting prior for StayBias
+  target += normal_lpdf(beta_stayM | 0, 1); 
+  target += normal_lpdf(beta_staySD | 0, 0.3) - normal_lccdf(0|0, .3); 
 
-  target += normal_lpdf(beta_leave | 0, 0.3); // setting prior for LeaveBias
+  target += normal_lpdf(beta_leaveM | 0, 1); 
+  target += normal_lpdf(beta_leaveSD | 0, 0.3) - normal_lccdf(0|0, .3); 
+
+  //The priors for alpha and beta
+  target += normal_lpdf(alpha | alphaM, alphaSD);
+  target += normal_lpdf(beta_stay | beta_stayM, beta_staySD);
+  target += normal_lpdf(beta_leave | beta_leaveM, beta_leaveSD);
 
   // The model 
   for (i in agents):
