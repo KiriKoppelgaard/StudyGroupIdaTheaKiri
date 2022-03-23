@@ -60,24 +60,30 @@ win <- na.omit(win)
 lose <- na.omit(lose)
 ```
 
-Fra data: 
-  #vector<lower=-1, upper=1>[n] win; // feedback, if win and #heads = 1, win and tails = -1
-  #vector<lower=-1, upper=1>[n] lose; //feedback, if lose and #heads = -1, lose and tails = 1
-}
 
 
 ```{r}
 stan_file <- write_stan_file("
 // This Stan model infers two rates; a StayBias and a LeaveBias to model a WSLS agent
 
+// A function used for truncating SD later
+functions {
+  real normal_lb_rng(real mu, real sigma, real lb) {
+    real p = normal_cdf(lb | mu, sigma); // cdf for bounds
+    real u = uniform_rng(p, 1);
+    return (sigma * inv_Phi(u)) + mu; // inverse cdf for value
+  }
+}
+
 // The input data is 
 data {
   int <lower=1> trials; // n of trials 
   int <lower=1> agents; // n of agents
 
-  array[trials, decision] int decision;  // decision
+  array[trials, Decision] int decision;  // decision
   array[trials, win] int win;  // win
   array[trials, lose] int lose;  // lose
+}
 
 
 // The parameters accepted by the model.
@@ -114,8 +120,8 @@ model {
   target += normal_lpdf(beta_leave | beta_leaveM, beta_leaveSD);
 
   // The model 
-  for (i in agents):
-    target += bernoulli_logit_lpmf(k[,i] | alpha[i] + to_vector(win[,i]*beta_stay[i]) + to_vector(lose[,i]*beta_leave[i])); // the model
+  for (i in agents)
+    target += bernoulli_logit_lpmf(decision[,i] | alpha[i] + to_vector(win[,i]*beta_stay[i]) + to_vector(lose[,i]*beta_leave[i])); // the model
 }
 
 
@@ -149,9 +155,9 @@ generated quantities{
   beta_leave_prior = normal_rng(beta_leaveM_prior, beta_leaveSD_prior);
 
   for (i in 1:agents) 
-    prior_preds[,i] = binomial_rng(trials, inv_logit(alpha_prior + to_vector(win[,i]) * beta_stay_prior) + inv_logit(to_vector(lose[,i]) * beta_leave_prior)));
+    prior_preds[,i] = binomial_rng(trials, inv_logit(alpha_prior + to_vector(win[,i]) * beta_stay_prior) + inv_logit(to_vector(lose[,i]) * beta_leave_prior));
 
-  for (i n :agents) 
+  for (i in 1:agents) 
     posterior_preds[,i] = binomial_rng(trials, inv_logit(alpha[i] + to_vector(win[,i]) * beta_stay[i]) + inv_logit(to_vector(lose[,i]) * beta_leave[i]));
 
 } 
@@ -163,7 +169,7 @@ generated quantities{
 
 ```{r}
 #Compile the model
-mod <- cmdstan_model(stan_file_single, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+mod <- cmdstan_model(stan_file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 ```
 
 
