@@ -121,13 +121,28 @@ model {
 
 // This block quantifies the 
 generated quantities{
-  real leavebias_posterior;
-  real staybias_posterior;
+  real alphaM_prior; 
+  real<lower=0> alphaSD_prior; 
+  real betaM_prior; 
+  real<lower=0> betaSD_prior; 
+  real alpha_prior; 
+  real beta_prior; 
 
-  staybias_posterior = beta_stay;
-  leavebias_posterior = beta_leave;
-  
-}
+  array[trials,agents] int<lower=0, upper = trials> prior_preds;   array[trials,agents] int<lower=0, upper = trials> posterior_preds; 
+
+  alphaM_prior = normal_rng(0,1); 
+  alphaSD_prior = normal_lb_rng(0,0.3,0); 
+  betaM_prior = normal_rng(0,1); 
+  betaSD_prior = normal_lb_rng(0,0.3,0); 
+  alpha_prior = inv_logit(normal_rng(alphaM_prior, alphaSD_prior)); 
+  beta_prior = inv_logit(normal_rng(betaM_prior, betaSD_prior));
+
+  for (i in 1:agents) 
+    prior_preds[,i] = binomial_rng(trials,     inv_logit(alpha_prior + to_vector(memory[,i]) * beta_prior)); 
+
+  for (i n :agents) 
+  posterior_preds[,i] = binomial_rng(trials, inv_logit(alpha[i] + to_vector(memoryLip * beta[i])); 
+} 
 
 ")
 
