@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 setwd("~/Documents/MASTERS_I_COGSCI/StudyGroupIdaTheaKiri")
 library(pacman)
-p_load(tidyverse)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 ```
 
 
@@ -75,6 +75,15 @@ data <- list(
 ```{r}
 stan_file_simplereversal <- write_stan_file("
 // This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+// A function used for truncating SD later
+functions {
+  real normal_lb_rng(real mu, real sigma, real lb) {
+    real p = normal_cdf(lb | mu, sigma); // cdf for bounds
+    real u = uniform_rng(p, 1);
+    return (sigma * inv_Phi(u)) + mu; // inverse cdf for value
+  }
+}
+
 
 // The input data is two integer numbers: n and k.
 data {
@@ -94,16 +103,13 @@ parameters {
   real <lower=0> beta_staySD;
   real beta_leaveM;
   real <lower=0> beta_leaveSD;
-
   array[agents] real alpha;
   array[agents] real beta_stay;
   array[agents] real beta_leave;
 }
 
-transformed parameters{
-  vector[n] theta;
-  theta = alpha + (beta_stay*win)+ (beta_leave*lose); //multiplying the paramaters we want to estimate on the data
-}
+
+
 
 // The model to be estimated; prior and likelihood
 model {
@@ -122,23 +128,60 @@ model {
   target += bernoulli_logit_lpmf(beta_leave | beta_leaveM, beta_leaveSD);
 
   for (i in 1:agents)
-    target += bernoulli_logit_lpmf(decision[,i] | alpha[i] + to_vector(beta_stay[,i] * win[,i]) + to_vector(beta_leave[,i] * lose[,i]));
+    target += bernoulli_logit_lpmf(decision[,i] | alpha[i] + to_vector(win[,i]*beta_stay[i] ) + to_vector( lose[,i]*beta_leave[i] ));
 }
 
+// This block quantifies the 
 generated quantities{
-  real bstay_prior;
-  real bstay_posterior;
-  int<lower=0, upper=n> prior_preds;
-  array[n] int <lower=0, upper=n> posterior_preds;
+  real alphaM_prior; 
+  real<lower=0> alphaSD_prior; 
 
-  bstay_prior = normal_rng(0,1);
-  bstay_posterior = beta_stay;
-  
-  prior_preds = binomial_rng(n, inv_logit(bstay_prior));
-  posterior_preds = binomial_rng(n, inv_logit(theta));
-}
+  real beta_stayM_prior; 
+  real<lower=0> beta_staySD_prior;
+
+  real beta_leaveM_prior; 
+  real<lower=0> beta_leaveSD_prior;
+
+  real alpha_prior; 
+  real beta_stay_prior;
+  real beta_leave_prior;
+
+  array[trials,agents] int<lower=0, upper = trials> prior_preds;
+  array[trials,agents] int<lower=0, upper = trials> posterior_preds; 
+
+  alphaM_prior = normal_rng(0,1); 
+  alphaSD_prior = normal_lb_rng(0,0.3,0); 
+  beta_stayM_prior = normal_rng(0,1); 
+  beta_staySD_prior = normal_lb_rng(0,0.3,0);
+  beta_leaveM_prior = normal_rng(0,1); 
+  beta_leaveSD_prior = normal_lb_rng(0,0.3,0);
+
+  alpha_prior = inv_logit(normal_rng(alphaM_prior, alphaSD_prior)); 
+  beta_stay_prior = normal_rng(beta_stayM_prior, beta_staySD_prior);
+  beta_leave_prior = normal_rng(beta_leaveM_prior, beta_leaveSD_prior);
+
+  for (i in 1:agents) 
+    prior_preds[,i] = binomial_rng(trials, inv_logit(alpha_prior + to_vector(win[,i]) * beta_stay_prior) + inv_logit(to_vector(lose[,i]) * beta_leave_prior));
+
+  for (i in 1:agents) 
+    posterior_preds[,i] = binomial_rng(trials, inv_logit(alpha[i] + to_vector(win[,i]) * beta_stay[i]) + inv_logit(to_vector(lose[,i]) * beta_leave[i]));
+
+} 
+
 
 ")
+```
+
+
+//transformed parameters{
+//  vector[n] theta;
+//  theta = alpha + (beta_stay*win)+ (beta_leave*lose); //multiplying the paramaters we want to estimate on the data
+//}
+
+```{r}
+
+mod <- cmdstan_model(stan_file_simplereversal, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
 ```
 
 
