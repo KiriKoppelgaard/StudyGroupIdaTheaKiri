@@ -1,0 +1,153 @@
+---
+title: "Multilevel-Modelling"
+author: "KK"
+date: '2022-03-23'
+output: html_document
+---
+#Load libraries 
+```{r}
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
+
+#load data
+penny_data <- read.csv('penny_data/mp_schizophrenia.csv')
+```
+
+
+```{r }
+#Subsetting the data to only include one botstrategy and fewer blocks
+simple_reversal <- penny_data[penny_data$BotStrategy == 'SimpleReversal' & (penny_data$Block == 1 | penny_data$Block == 3), ]
+simple_reversal <- na.omit(simple_reversal)
+
+#Recoding variables
+simple_reversal$win[simple_reversal$Payoff == 1 & lag(simple_reversal$Decision) == 1] <- 1
+simple_reversal$win[simple_reversal$Payoff == 1 & lag(simple_reversal$Decision) == 0] <- -1
+simple_reversal$win[simple_reversal$Payoff == -1] <- 0
+
+simple_reversal$lose[simple_reversal$Payoff == -1 & lag(simple_reversal$Decision) == 1] <- -1
+simple_reversal$lose[simple_reversal$Payoff == -1 & lag(simple_reversal$Decision) == 0] <- 1
+simple_reversal$lose[simple_reversal$Payoff == 1] <- 0
+
+#Remove all trials 1
+simple_reversal <- simple_reversal[simple_reversal$Trial != 1, ]
+
+#Constructing data
+Decision <- simple_reversal %>% 
+    subset(select=c(ID, Decision))%>% 
+    group_by(ID) %>%
+    mutate(row = row_number()) %>% 
+    pivot_wider(names_from = ID, values_from = Decision)%>%
+    select(!(row))
+
+
+win <- simple_reversal %>% 
+    subset(select=c(ID, win))%>% 
+    group_by(ID) %>%
+    mutate(row = row_number()) %>% 
+    pivot_wider(names_from = ID, values_from = win) %>%
+    select(!(row))
+
+lose <- simple_reversal %>% 
+    subset(select=c(ID, lose))%>% 
+    group_by(ID) %>%
+    mutate(row = row_number()) %>% 
+    pivot_wider(names_from = ID, values_from = lose)%>%
+    select(!(row))
+
+#Dealing with NA's
+Decision <- na.omit(Decision)
+win <- na.omit(win)
+lose <- na.omit(lose)
+```
+
+Fra data: 
+  #vector<lower=-1, upper=1>[n] win; // feedback, if win and #heads = 1, win and tails = -1
+  #vector<lower=-1, upper=1>[n] lose; //feedback, if lose and #heads = -1, lose and tails = 1
+}
+
+
+```{r}
+stan_file <- write_stan_file("
+// This Stan model infers two rates; a StayBias and a LeaveBias to model a WSLS agent
+
+// The input data is 
+data {
+  int <lower=1> trials; // n of trials 
+  int <lower=1> agents; // n of agents
+
+  array[trials, decision] int decision;  // decision
+  array[trials, win] int win;  // win
+  array[trials, lose] int lose;  // lose
+
+
+// The parameters accepted by the model.
+
+parameters {
+  real alpha; // intercept
+  real beta_stay; // the propensity to stay, given the agent won
+  real beta_leave; //the propensity to leave, given the agent lost
+}
+
+
+// The model to be estimated; prior and likelihood
+model {
+  // Priors: 
+  target += normal_lpdf(alpha | 0, 1); 
+
+  target += normal_lpdf(beta_stay | 0, 0.3); // setting prior for StayBias
+
+  target += normal_lpdf(beta_leave | 0, 0.3); // setting prior for LeaveBias
+
+  // The model 
+  for (i in agents):
+    target += bernoulli_logit_lpmf(k[,i] | alpha[i] + to_vector(win[,i]*beta_stay[i]) + to_vector(lose[,i]*beta_leave[i])); // the data given theta aka the model
+}
+
+
+// This block quantifies the 
+generated quantities{
+  real leavebias_posterior;
+  real staybias_posterior;
+
+  staybias_posterior = beta_stay;
+  leavebias_posterior = beta_leave;
+  
+}
+
+")
+
+```
+
+```{r}
+#Compile the model
+mod <- cmdstan_model(stan_file_single, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+```
+
+
+
+```{r}
+#Create the data 
+data <- list(
+      trials = nrow(Decision), 
+      agents = ncol(Decision),
+      decision = as.matrix(Decision),
+      win = as.matrix(win),
+      lose = as.matrix(lose)
+    )
+
+#Collect samples from the model 
+samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 1,
+    parallel_chains = 1,
+    threads_per_chain = 1,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99)
+    
+draws_df <- as_draws_df(samples$draws())
+```
+
