@@ -115,7 +115,7 @@ model {
 
   // The model 
   for (i in agents):
-    target += bernoulli_logit_lpmf(k[,i] | alpha[i] + to_vector(win[,i]*beta_stay[i]) + to_vector(lose[,i]*beta_leave[i])); // the data given theta aka the model
+    target += bernoulli_logit_lpmf(k[,i] | alpha[i] + to_vector(win[,i]*beta_stay[i]) + to_vector(lose[,i]*beta_leave[i])); // the model
 }
 
 
@@ -123,26 +123,39 @@ model {
 generated quantities{
   real alphaM_prior; 
   real<lower=0> alphaSD_prior; 
-  real betaM_prior; 
-  real<lower=0> betaSD_prior; 
-  real alpha_prior; 
-  real beta_prior; 
 
-  array[trials,agents] int<lower=0, upper = trials> prior_preds;   array[trials,agents] int<lower=0, upper = trials> posterior_preds; 
+  real beta_stayM_prior; 
+  real<lower=0> beta_staySD_prior;
+
+  real beta_leaveM_prior; 
+  real<lower=0> beta_leaveSD_prior;
+
+  real alpha_prior; 
+  real beta_stay_prior;
+  real beta_leave_prior;
+
+  array[trials,agents] int<lower=0, upper = trials> prior_preds;
+  array[trials,agents] int<lower=0, upper = trials> posterior_preds; 
 
   alphaM_prior = normal_rng(0,1); 
   alphaSD_prior = normal_lb_rng(0,0.3,0); 
-  betaM_prior = normal_rng(0,1); 
-  betaSD_prior = normal_lb_rng(0,0.3,0); 
+  beta_stayM_prior = normal_rng(0,1); 
+  beta_staySD_prior = normal_lb_rng(0,0.3,0);
+  beta_leaveM_prior = normal_rng(0,1); 
+  beta_leaveSD_prior = normal_lb_rng(0,0.3,0);
+
   alpha_prior = inv_logit(normal_rng(alphaM_prior, alphaSD_prior)); 
-  beta_prior = inv_logit(normal_rng(betaM_prior, betaSD_prior));
+  beta_stay_prior = normal_rng(beta_stayM_prior, beta_staySD_prior);
+  beta_leave_prior = normal_rng(beta_leaveM_prior, beta_leaveSD_prior);
 
   for (i in 1:agents) 
-    prior_preds[,i] = binomial_rng(trials,     inv_logit(alpha_prior + to_vector(memory[,i]) * beta_prior)); 
+    prior_preds[,i] = binomial_rng(trials, inv_logit(alpha_prior + to_vector(win[,i]) * beta_stay_prior) + inv_logit(to_vector(lose[,i]) * beta_leave_prior)));
 
   for (i n :agents) 
-  posterior_preds[,i] = binomial_rng(trials, inv_logit(alpha[i] + to_vector(memoryLip * beta[i])); 
+    posterior_preds[,i] = binomial_rng(trials, inv_logit(alpha[i] + to_vector(win[,i]) * beta_stay[i]) + inv_logit(to_vector(lose[,i]) * beta_leave[i]));
+
 } 
+
 
 ")
 
