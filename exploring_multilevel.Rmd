@@ -10,9 +10,194 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #load data
 ```{r}
-#set working directory
+# set working directory
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
-d <- read.csv('mp_schizophrenia.csv')
+penny_data <- read.csv('mp_schizophrenia.csv')
+
+# simple reversal, blocks 1 and 3 (same kind of bot bias, mostly towards heads)
+d <- na.omit(penny_data[penny_data$BotStrategy == 'SimpleReversal' & (penny_data$Block == 1 | penny_data$Block == 3), ])
+
+#recoding variables
+d$win[d$Payoff == 1 & lag(d$Decision) == 1] <- 1
+d$win[d$Payoff == 1 & lag(d$Decision) == 0] <- -1
+d$win[d$Payoff == -1] <- 0
+
+d$lose[d$Payoff == -1 & lag(d$Decision) == 1] <- -1
+d$lose[d$Payoff == -1 & lag(d$Decision) == 0] <- 1
+d$lose[d$Payoff == 1] <- 0
+
+# ^^ OBS: now across participants... and first is NA... so omitting every first trial:
+d <- d[d$Trial != 1,] #removing every first trial
+
+
+#for the data column_
+#NEED 3 MATRICES: with ID as columns, and either decision, win, or lose as values!
+
+decision_all <- d %>% 
+  subset(select=c(ID, Decision))%>% 
+  group_by(ID) %>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, 
+              values_from = Decision) %>%
+  select(!row) %>%
+  select_if(~ !any(is.na(.))) #remove participants with NAs
+
+win_all <- d %>% 
+  subset(select=c(ID, win))%>% 
+  group_by(ID) %>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, 
+              values_from = win) %>%
+  select(!row) %>%
+  select_if(~ !any(is.na(.))) #remove participants with NAs
+
+lose_all <- d %>% 
+  subset(select=c(ID, lose))%>% 
+  group_by(ID) %>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, 
+              values_from = lose) %>%
+  select(!row) %>%
+  select_if(~ !any(is.na(.))) #remove participants with NAs
+
+decision_all <- as.matrix(decision_all)
+win_all <- as.matrix(win_all)
+lose_all <- as.matrix(lose_all)
+
+
+# ---EXPLORATION
+# 82 unique participants
+# only 65 participants left after removing any with any NAs
+
+penny_data[penny_data$BotStrategy == 'SimpleReversal',] %>% group_by(Block) %>% summarise(sum(BotDecision))
+d %>% group_by(Block) %>% summarise(sum(BotDecision))
+#blocks 1 and 3 have bot head bias
+
+#SANITY CHECKING
+head(penny_data[penny_data$ID==218])
+```
+
+#fit multilevel WSLS model
+```{r}
+stan_wsls_multi <- write_stan_file("
+// This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+
+// The input data is two integer numbers: n and k.
+data {
+  int <lower=1> n; // n of trials 
+  array[n]int k;  // choices
+  vector<lower=-1, upper=1>[n] win; //stay bias
+  vector<lower=-1, upper=1>[n] lose; //leave bias
+  real prior_mean_bstay; 
+  real <lower = 0> prior_sd_bstay;
+}
+
+// The parameters accepted by the model. Our model accepts only theta, the rate, 
+// which is bound at 0 (no chances of success) and 1 (always success)
+parameters {
+  real alpha;
+  real beta_stay;
+  real beta_leave;
+}
+
+transformed parameters{
+  vector[n] theta;
+  theta = alpha + (beta_stay*win)+ (beta_leave*lose); //multiplying the parameters we want to estimate in the data
+}
+
+// The model to be estimated; prior and likelihood
+model {
+  // The prior for theta is a uniform distribution between 0 and 1
+  target += normal_lpdf(alpha | 0, 1);
+  target += normal_lpdf(beta_stay | prior_mean_bstay, prior_sd_bstay);
+  target += normal_lpdf(beta_leave | 0, 0.3);
+
+  // The model consists of a binomial distribution with a rate theta, 
+  // and a number of trials n generating k successes
+  target += bernoulli_logit_lpmf(k | theta);
+}
+
+generated quantities{
+  real bstay_prior;
+  real bstay_posterior;
+  int<lower=0, upper=n> prior_preds;
+  array[n] int <lower=0, upper=n> posterior_preds;
+
+  bstay_prior = normal_rng(0,1);
+  bstay_posterior = beta_stay;
+  
+  prior_preds = binomial_rng(n, inv_logit(bstay_prior));
+  posterior_preds = binomial_rng(n, inv_logit(theta));
+}
+
+")
+```
+
+
+```{r}
+#Compile the model
+mod_single <- cmdstan_model(stan_file_single, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 
 ```
+
+Technically you could access parameter values all four possible conditions as follows: 
+
+- posteriorWH_preds = binomial_rng(n, inv_logit(alpha + beta_stay*1 + beta_leave*0));
+
+#Draw posterior distributions
+```{r}
+sensitivity_df <- NULL
+trials_n <- nrow(single_agent)
+
+for (p in seq(nrow(priors))){
+  data <- list(
+    n = trials_n, 
+    k = single_agent$Self[1:trials_n],
+    win = single_agent$win[1:trials_n],
+    lose = single_agent$lose[1:trials_n],
+    prior_mean_bstay = priors$prior_mean_bstay[p],
+    prior_sd_bstay = priors$prior_sd_bstay[p]
+  )
+  
+  samples <- mod_single$sample(
+  data = data,
+  seed = 123,
+  chains = 2,
+  parallel_chains = 2,
+  threads_per_chain = 2,
+  iter_warmup = 500,
+  iter_sampling = 500,
+  refresh = 500,
+  max_treedepth = 15,
+  adapt_delta = 0.99)
+  
+  draws_df <- as_draws_df(samples$draws())
+  
+  temp <- tibble(bstay_prior = draws_df$bstay_prior, 
+                 bstay_posterior = draws_df$bstay_posterior,
+                 prior_preds = draws_df$prior_preds, 
+                 posterior_preds = draws_df$posterior_preds, 
+                 prior_mean_bstay = priors$prior_mean_bstay[p],
+                 prior_sd_bstay = priors$prior_sd_bstay[p]
+                 )
+  if(exists("sensitivity_df")){sensitivity_df <- rbind (sensitivity_df, temp)} else {sensitivity_df <- temp}
+  
+}
+
+
+```
+
+#fit multilevel random bias model
+```{r}
+
+```
+
+#do model comparison
+```{r}
+
+```
+
+
 
