@@ -82,24 +82,40 @@ head(penny_data[penny_data$ID==218])
 #fit multilevel WSLS model
 ```{r}
 stan_wsls_multi <- write_stan_file("
-// This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+// This Stan model infers alpha, beta_stay and beta_leave for agents from a number of trials (n) and successes (k)
 
-// The input data is two integer numbers: n and k.
-data {
-  int <lower=1> n; // n of trials 
-  array[n]int k;  // choices
-  vector<lower=-1, upper=1>[n] win; //stay bias
-  vector<lower=-1, upper=1>[n] lose; //leave bias
-  real prior_mean_bstay; 
-  real <lower = 0> prior_sd_bstay;
+
+// A function used for truncating SD later
+functions {
+  real normal_lb_rng(real mu, real sigma, real lb) {
+    real p = normal_cdf(lb | mu, sigma); // cdf for bounds
+    real u = uniform_rng(p, 1);
+    return (sigma * inv_Phi(u)) + mu; // inverse cdf for value
+  }
 }
 
-// The parameters accepted by the model. Our model accepts only theta, the rate, 
-// which is bound at 0 (no chances of success) and 1 (always success)
+
+// The input (data) for the model
+data {
+  int <lower=1> trials; // number of trials 
+  int <lower=1> agents; // number of agents
+  array[trials, agents] int decision;  // choices
+  array[trials, agents] int <lower=-1, upper=1> win; //win dummy variable
+  array[trials, agents] int <lower=-1, upper=1> lose; //lose dummy variable
+}
+
+// The parameters accepted by the model
 parameters {
-  real alpha;
-  real beta_stay;
-  real beta_leave;
+  real alphaM; // intercept: Mean
+  real <lower = 0> alphaSD; // intercept: SD
+  real beta_stayM; // beta_stay: Mean
+  real <lower = 0> beta_staySD; // beta_stay: SD
+  real beta_leaveM; // beta_leave: Mean
+  real <lower = 0> beta_leaveSD; // beta_leave: SD
+
+  array[agents] real alpha;
+  array[agents] real beta_stay;
+  array[agents] real beta_leave;
 }
 
 transformed parameters{
