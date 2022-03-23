@@ -1,0 +1,18 @@
+---
+title: "exploring_multilevel"
+output: html_document
+date: '2022-03-23'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#load data
+```{r}
+#set working directory
+
+d <- read.csv('mp_schizophrenia.csv')
+
+```
+
