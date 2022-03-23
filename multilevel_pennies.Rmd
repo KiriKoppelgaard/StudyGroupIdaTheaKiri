@@ -1,0 +1,133 @@
+---
+title: "multilevel_pennies"
+output: html_document
+date: '2022-03-23'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("~/Documents/MASTERS_I_COGSCI/StudyGroupIdaTheaKiri")
+library(pacman)
+p_load(tidyverse)
+```
+
+
+```{r}
+data <- read.csv("penny_data/mp_schizophrenia.csv")
+
+simple_reversal <- data[data$BotStrategy == 'SimpleReversal' & (data$Block == 1 | data$Block == 3), ]
+simple_reversal <- na.omit(simple_reversal)
+
+
+#Recoding variables
+simple_reversal$win[simple_reversal$Payoff == 1 & lag(simple_reversal$Decision) == 1] <- 1
+simple_reversal$win[simple_reversal$Payoff == 1 & lag(simple_reversal$Decision) == 0] <- -1
+simple_reversal$win[simple_reversal$Payoff == -1] <- 0
+
+simple_reversal$lose[simple_reversal$Payoff == -1 & lag(simple_reversal$Decision) == 1] <- -1
+simple_reversal$lose[simple_reversal$Payoff == -1 & lag(simple_reversal$Decision) == 0] <- 1
+simple_reversal$lose[simple_reversal$Payoff == 1] <- 0
+
+simple_reversal<-simple_reversal[!(simple_reversal$Trial==1),]
+
+```
+
+```{r}
+data1 <- na.omit(simple_reversal %>%
+  subset(select=c(ID, Decision)) %>% 
+  group_by(ID) %>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = Decision) %>%
+  select(!(row)))
+
+datawin <- na.omit(simple_reversal %>%
+  subset(select=c(ID, win))%>% 
+  group_by(ID) %>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID,values_from = win)%>%
+  select(!(row)))
+
+datalose <- na.omit(simple_reversal %>%
+  subset(select=c(ID, lose))%>% 
+  group_by(ID) %>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID,values_from = lose) %>%
+  select(!(row)))
+
+
+```
+
+
+```{r}
+data <- list(
+    n = nrow(simple_reversal), 
+    decision = as.matrix(data1),
+    agents = length(names(data1)),
+    win = as.matrix(datawin),
+    lose = as.matrix(datalose))
+
+```
+
+
+```{r}
+stan_file_simplereversal <- write_stan_file("
+// This Stan model infers a rate (theta) from a number of trials (n) and successes (k)
+
+// The input data is two integer numbers: n and k.
+data {
+  int <lower=1> trials; // n of trials 
+  int <lower=1> agents;
+  array[trials, agents] int decision;  // choices
+  array[trials, agents] int <lower=-1, upper=1> win; //stay bias
+  array[trials, agents] int <lower=-1, upper=1> lose; //leave bias
+}
+
+// The parameters accepted by the model. Our model accepts only theta, the rate, 
+// which is bound at 0 (no chances of success) and 1 (always success)
+parameters {
+  //real alpha;
+  //real beta_stay;
+  //real beta_leave;
+  real thetaM;
+  real <lower=0> thetaSD;
+  array[agents] real theta;
+}
+
+transformed parameters{
+  vector[n] theta;
+  theta = alpha + (beta_stay*win)+ (beta_leave*lose); //multiplying the paramaters we want to estimate on the data
+}
+
+// The model to be estimated; prior and likelihood
+model {
+  // The prior for theta is a uniform distribution between 0 and 1
+  target += normal_lpdf(alpha | 0, 1);
+  target += normal_lpdf(beta_stay | 0, 0.3);
+  target += normal_lpdf(beta_leave | 0, 0.3);
+
+  // The model consists in a binomial distribution with a rate theta, 
+  // and a number of trials n generating k successes
+  target += bernoulli_logit_lpmf(decision | theta);
+}
+
+generated quantities{
+  real bstay_prior;
+  real bstay_posterior;
+  int<lower=0, upper=n> prior_preds;
+  array[n] int <lower=0, upper=n> posterior_preds;
+
+  bstay_prior = normal_rng(0,1);
+  bstay_posterior = beta_stay;
+  
+  prior_preds = binomial_rng(n, inv_logit(bstay_prior));
+  posterior_preds = binomial_rng(n, inv_logit(theta));
+}
+
+")
+```
+
+
+
