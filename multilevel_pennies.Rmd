@@ -88,12 +88,16 @@ data {
 // The parameters accepted by the model. Our model accepts only theta, the rate, 
 // which is bound at 0 (no chances of success) and 1 (always success)
 parameters {
-  //real alpha;
-  //real beta_stay;
-  //real beta_leave;
-  real thetaM;
-  real <lower=0> thetaSD;
-  array[agents] real theta;
+  real alphaM;
+  real <lower=0> alphaSD;
+  real beta_stayM;
+  real <lower=0> beta_staySD;
+  real beta_leaveM;
+  real <lower=0> beta_leaveSD;
+
+  array[agents] real alpha;
+  array[agents] real beta_stay;
+  array[agents] real beta_leave;
 }
 
 transformed parameters{
@@ -104,13 +108,21 @@ transformed parameters{
 // The model to be estimated; prior and likelihood
 model {
   // The prior for theta is a uniform distribution between 0 and 1
-  target += normal_lpdf(alpha | 0, 1);
-  target += normal_lpdf(beta_stay | 0, 0.3);
-  target += normal_lpdf(beta_leave | 0, 0.3);
+  target += normal_lpdf(alphaM | 0, 1);
+  target += normal_lpdf(alphaSD | 0, .3) - normal_lccdf(0| 0, .03);
+  target += normal_lpdf(beta_stayM | 0, 0.3);
+  target += normal_lpdf(beta_staySD | 0, 0.3)- normal_lccdf(0| 0, .03);
+  target += normal_lpdf(beta_leaveM | 0, 0.3);
+  target += normal_lpdf(beta_leaveSD | 0, 0.3)- normal_lccdf(0| 0, .03);
 
   // The model consists in a binomial distribution with a rate theta, 
   // and a number of trials n generating k successes
-  target += bernoulli_logit_lpmf(decision | theta);
+  target += bernoulli_logit_lpmf(alpha | alphaM, alphaSD);
+  target += bernoulli_logit_lpmf(beta_stay | beta_stayM, beta_staySD);
+  target += bernoulli_logit_lpmf(beta_leave | beta_leaveM, beta_leaveSD);
+
+  for (i in 1:agents)
+    target += bernoulli_logit_lpmf(decision[,i] | alpha[i] + to_vector(beta_stay[,i] * win[,i]) + to_vector(beta_leave[,i] * lose[,i]));
 }
 
 generated quantities{
