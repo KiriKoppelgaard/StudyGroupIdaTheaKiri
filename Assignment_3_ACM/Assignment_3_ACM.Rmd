@@ -1,0 +1,34 @@
+---
+title: "Assignment_3_ACM"
+output: html_document
+date: '2022-03-30'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#load packages and data
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
+
+data <- read.csv("data/sc_schizophrenia.csv")
+
+
+
+
+```
+
+```{r}
+file_simple <- file.path("")
+file_w <- file.path("")
+
+mod
+
+
+
+
+```
+
