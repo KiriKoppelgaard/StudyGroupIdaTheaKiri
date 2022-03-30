@@ -84,8 +84,41 @@ ggplot(data, aes(x=FirstRating, y= feedback, col=Group)) +
 ```
 
 
-BIASES:
 
-- ID plots also show: people differ in how much they use the rating scale
+---NOTES FROM CLASS
+
+change ~ feedback
+, so:
+2rating ~ logit(1rating) + logit(otherrating)
+
+^^ but this has issues!:
+
+BUT BIAS/POTENTIAL CONFOUND: not all feedbacks are possible! (e.g. if rate 8, can only get negative (or 0) feedback)
 - reg to the mean? -> how to discriminate btw going down from an 8 rating due to reg to mean, or due to conformity?
+
+
+SECOND POINT:
+prev model was Bernoulli, 0 or 1
+But now we need to change the family/shape of the outcome
+recommended for assignment:
+- go with normal distribution (not unproblematic, since it's discrete data... but for now, fuck it).
+- a function of mu (mean expected outcome) and sigma (not part of the model).
+mu is logit(first rating) + logit(peerrating). deterministic in simple Bayes, just one value.
+Stan doesn't like sigma of 0...
+We should put sigma in as a parameter to be estimated! It's the avg error the model is making when predicting the data!
+So the parameters (parameters to be estimated) AND model (form of the model) part of stan have to be filled. A model that actually estimates sigma.
+
+we should not have fixed parameters = TRUE, since sigma isn't fixed
+
+
+
+
+
+
+BIASES:
+- ID plots also show: people differ in how much they use the rating scale
+
+
+
+
 
