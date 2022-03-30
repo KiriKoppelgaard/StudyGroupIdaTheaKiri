@@ -24,7 +24,9 @@ Both datasets (students and schizophrenia) include the following columns:
 
 - Change: the difference between the second and the first rating - Class: participants belong to two different cohorts (1 and 2) tested at different times - Feedback: the difference between other rating and own first rating
 
-The schizophrenia dataset also includes: - Group: 0 is comparison group, 1 is schizophrenia group - RT_Round1: time taken to produce the first rating of trustworthiness
+The schizophrenia dataset also includes:
+- Group: 0 is comparison group, 1 is schizophrenia group (NO. Above 200 is controls, below 200 is patients!)
+- RT_Round1: time taken to produce the first rating of trustworthiness
 - RT_Round2: time taken to produce the second rating of trustworthiness
 
 The schizophrenia data was collected within the study described in Simonsen, A., Fusaroli, R., Skewes, J. C., Roepstorff, A., Mors, O., Bliksted, V., & Campbell-Meiklejohn, D. (2019). Socially learned attitude change is not reduced in medicated patients with schizophrenia. Scientific reports, 9(1), 1-11.

@@ -55,7 +55,6 @@ ggplot(data, aes(x=FirstRating, y= feedback, col=Group)) +
   geom_point() +
   facet_wrap(~ID)
 
-
 ```
 
 
@@ -63,6 +62,4 @@ BIASES:
 
 - ID plots also show: people differ in how much they use the rating scale
 - reg to the mean? -> how to discriminate btw going down from an 8 rating due to reg to mean, or due to conformity?
-
-
 
