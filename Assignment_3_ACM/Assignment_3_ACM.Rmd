@@ -17,8 +17,6 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 data <- read.csv("data/sc_schizophrenia.csv")
 
 
-
-
 ```
 
 ```{r}
@@ -28,7 +26,43 @@ file_w <- file.path("")
 mod
 
 
+```
+
+
+```{r}
+#IDA'S CHUNK
+data$self_change <- data$FirstRating - data$SecondRating #change from first to second rating
+data$self_change_abs <- abs(data$change)
+data$feedback <- data$FirstRating -data$OtherRating #FEEDBACK
+data$Group <- ifelse(data$ID >200, 0, 1) #control if above 200, schizo if below
+
+data$Group <- as.factor(data$Group)
+
+#remove NAs
+data <- na.omit(data) #OBS: check if participants have been removed fully even if only some NAs...
+
+
+#PLOT EXPLORATION
+
+#positive correlation. But individual differences:
+ggplot(data, aes(x=change, y= feedback, col=Group)) +
+  geom_point() +
+  facet_wrap(~ID)
+
+
+#also shows something:
+ggplot(data, aes(x=FirstRating, y= feedback, col=Group)) +
+  geom_point() +
+  facet_wrap(~ID)
 
 
 ```
+
+
+BIASES:
+
+- ID plots also show: people differ in how much they use the rating scale
+- reg to the mean? -> how to discriminate btw going down from an 8 rating due to reg to mean, or due to conformity?
+
+
 
