@@ -61,9 +61,9 @@ data_s <- data[data$ID=="103",]
 #Create data 
 data_single <- list(
       N = max(data_s$Trial_Round2), 
-      y = data_s$SecondRating,
-      SourceSelf = data_s$FirstRating,
-      SourceOther = data_s$OtherRating
+      y = data_s$SecondRating/9,
+      SourceSelf = data_s$FirstRating/9,
+      SourceOther = data_s$OtherRating/9
     )
 
 
@@ -93,6 +93,8 @@ samples_simple <- mod_simple$sample(
     refresh = 1000,
     max_treedepth = 20,
     adapt_delta = 0.99)
+
+samples_simple$summary()
 
 ```
 
