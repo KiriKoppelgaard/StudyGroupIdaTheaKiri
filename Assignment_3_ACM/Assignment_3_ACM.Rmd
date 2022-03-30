@@ -10,16 +10,18 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r}
-#load packages and data
+#load packages
 library(pacman)
 p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
+#Load data
 data <- read.csv("data/sc_schizophrenia.csv")
 
 ```
 
 
 ```{r}
+#Adding variables
 data <- data %>%
   mutate(Change = FirstRating - SecondRating) %>%
   mutate(Group = as.factor(ifelse(ID >=200, "C", "S"))) %>%
@@ -53,9 +55,10 @@ ggplot(data, aes(x=FirstRating, y= Feedback, col=Group)) +
 
 
 ```{r}
-
+#Select data for single object 
 data_s <- data[data$ID=="103",]
 
+#Create data 
 data_single <- list(
       N = max(data_s$Trial_Round2), 
       y = data_s$SecondRating,
@@ -68,14 +71,16 @@ data_single <- list(
 
 
 ```{r}
+#Import stan-file
 file_simple <- file.path("W8_simpleBayes.stan")
 
+#Compiling
 mod_simple <- cmdstan_model(file_simple, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 
 ```
 
 ```{r}
-
+#Sampling
 samples_simple <- mod_simple$sample(
     data = data_single,
     fixed_param = FALSE,
@@ -88,8 +93,6 @@ samples_simple <- mod_simple$sample(
     refresh = 1000,
     max_treedepth = 20,
     adapt_delta = 0.99)
-
-
 
 ```
 

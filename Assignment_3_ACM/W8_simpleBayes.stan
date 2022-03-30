@@ -22,16 +22,15 @@ parameters {
 }
 
 model {
-  //target += normal_lpdf(sigma | 0, 1) - normal_lccdf(0|0,1);
-  
-  target += normal_lpdf(y[N] | logit(SourceSelf[N])+logit(SourceOther[N]), sigma);
+  target += normal_lpdf(sigma | 0, 1) - normal_lccdf(0|0,1);
+  target += normal_lpdf(y | SourceSelf+SourceOther, sigma);
 }
 
 generated quantities{
   array[N] real log_lik;
   
   for (n in 1:N){  
-    log_lik[n] = normal_lpdf(y[n] | logit(SourceSelf[n])+logit(SourceOther[n]), sigma);
+    log_lik[n] = normal_lpdf(y[n] | SourceSelf[n]+SourceOther[n], sigma);
   }
   
 }
