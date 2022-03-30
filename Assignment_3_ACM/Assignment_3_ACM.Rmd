@@ -19,6 +19,32 @@ data <- read.csv("data/sc_schizophrenia.csv")
 
 ```
 
+
+```{r}
+data <- data %>%
+  mutate(Change = FirstRating - SecondRating) %>%
+  mutate(Group = ifelse(ID >200, "C", "S")) %>%
+  mutate(Feedback = FirstRating - OtherRating)
+data <- na.omit(data)
+
+mean(data$Change[data$Group== "S"])
+mean(data$Change[data$Group== "C"])
+
+ggplot(data, aes(x=Group, y=Feedback)) + geom_bar(stat = "summary", fun.y = "mean")
+
+ggplot(data, aes(x=Feedback, y=Change,fill="red")) +
+  geom_jitter(alpha=0.1) +
+  facet_wrap(~ Group) + 
+  geom_bar(stat = "summary", fun.y = "mean") +
+  theme_bw()
+
+#given first rating the feedback i recieved !!
+
+
+```
+
+
+
 ```{r}
 file_simple <- file.path("")
 file_w <- file.path("")
