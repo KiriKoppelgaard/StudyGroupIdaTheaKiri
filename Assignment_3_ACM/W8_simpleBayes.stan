@@ -11,11 +11,10 @@
 
 
 data {
-  int<lower=1> participants; //number of participants
   int<lower=0> N; //Number of trials
-  array[N, participants] real y; //Decision
-  array[N, participants] real SourceSelf; 
-  array[N, participants] real SourceOther;
+  array[N] real y; //Decision
+  vector[N] SourceSelf; 
+  vector[N] SourceOther;
 }
 
 parameters {
@@ -23,18 +22,16 @@ parameters {
 }
 
 model {
-  target += normal_lpdf(sigma | 0, 1) - normal_lccdf(0|0,1);
+  target += normal_lpdf(sigma | sd(y), sd(y)/2) - normal_lccdf(0|sd(y),sd(y)/2);
   target += normal_lpdf(y | logit(SourceSelf)+logit(SourceOther), sigma);
 }
 
 generated quantities{
   array[N] real log_lik;
   
-  for (participant in 1:participants){
-    for (n in 1:N){  
-      log_lik[n] = normal_lpdf(y[n] | logit(SourceSelf[n])+logit(SourceOther[n]), sigma);
-    }
-    log_lik_all[participant] = log_lik
+
+  for (n in 1:N){  
+    log_lik[n] = normal_lpdf(y[n] | logit(SourceSelf[n])+logit(SourceOther[n]), sigma);
   }
   
 }

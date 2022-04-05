@@ -53,7 +53,7 @@ ggplot(data, aes(x=FirstRating, y= Feedback, col=Group)) +
 
 ```
 
-
+#Simple Bayes for a single participant
 ```{r}
 #Select data for single object 
 data_s <- data[data$ID=="103",]
@@ -72,7 +72,7 @@ data_single <- list(
 
 ```{r}
 #Import stan-file
-file_simple <- file.path("W8_simpleBayes.stan")
+file_simple <- file.path("W8_simpleBayes_single.stan")
 
 #Compiling
 mod_simple <- cmdstan_model(file_simple, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
@@ -94,20 +94,131 @@ samples_simple <- mod_simple$sample(
     max_treedepth = 20,
     adapt_delta = 0.99)
 
+#Save draws
+draws_df <- as_draws_df(samples_simple$draws())
+
+#Print model summary
 samples_simple$summary()
 
 ```
 
 
-
 ```{r}
-#Plotting model quality
-ggplot(draws_df, aes(.iteration, theta, group=.chain, color=.chain)) +
+#Plotting model quality for weight1
+ggplot(draws_df, aes(.iteration, sigma, group=.chain, color=.chain)) +
 geom_line()+
 theme_classic()
 
+
+#Print model diagnostics
 samples_simple$cmdstan_diagnose()
 ```
+
+#Simple Bayes for all participants, full pooling
+```{r}
+#Create data 
+data_all <- list(
+      N = length(data$SecondRating), 
+      y = data$SecondRating/9,
+      SourceSelf = data$FirstRating/9,
+      SourceOther = data$OtherRating/9
+    )
+```
+
+
+```{r}
+#Import stan-file
+file_simple <- file.path("W8_simpleBayes.stan")
+
+#Compiling
+mod_simple <- cmdstan_model(file_simple, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
+```
+
+```{r}
+#Sampling
+samples_simple <- mod_simple$sample(
+    data = data_all,
+    fixed_param = FALSE,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99)
+
+#Save draws
+draws_df <- as_draws_df(samples_simple$draws())
+
+#print model summary
+samples_simple$summary()
+
+```
+
+```{r}
+#Plotting model quality for weight1
+ggplot(draws_df, aes(.iteration, sigma, group=.chain, color=.chain)) +
+geom_line()+
+theme_classic()
+
+
+#Print model diagnostics
+samples_simple$cmdstan_diagnose()
+```
+
+
+#Weighted Bayes for a single participant
+
+```{r}
+#Import stan-file
+file <- file.path("W8_weightedBayes_single.stan")
+
+#Compiling
+mod_weighted <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
+```
+
+```{r}
+#Sampling
+samples_weighted <- mod_weighted$sample(
+    data = data_single,
+    fixed_param = FALSE,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99)
+
+#Save draws
+draws_df <- as_draws_df(samples_weighted$draws())
+
+#Print model summary
+samples_simple$summary()
+
+```
+
+```{r}
+#Plotting model quality for weight1
+ggplot(draws_df, aes(.iteration, weight1, group=.chain, color=.chain)) +
+geom_line()+
+theme_classic()
+
+#Plotting model quality for weight2
+ggplot(draws_df, aes(.iteration, weight2, group=.chain, color=.chain)) +
+geom_line()+
+theme_classic()
+
+#Print model diagnostics
+samples_simple$cmdstan_diagnose()
+```
+
 
 
 

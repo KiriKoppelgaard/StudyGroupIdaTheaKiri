@@ -22,7 +22,7 @@ parameters {
 }
 
 model {
-  target += normal_lpdf(sigma | 0, 1) - normal_lccdf(0|0,1);
+  target += normal_lpdf(sigma | sd(y), sd(y)/2) - normal_lccdf(0|sd(y),sd(y)/2);
   target += normal_lpdf(y | logit(SourceSelf)+logit(SourceOther), sigma);
 }
 
