@@ -13,9 +13,9 @@ functions{
 data {
   int<lower=0> trials;//trials
   int<lower=1> participants; //number of participants
-  array[trials, participants] real choice; //decisions
-  array[trials, participants] real SourceSelf;
-  array[trials, participants] real SourceOther;
+  array[trials, participants] real <lower=0> choice; //decisions
+  array[trials, participants] real <lower=0> SourceSelf;
+  array[trials, participants] real <lower=0> SourceOther;
 }
 
 parameters {
@@ -38,7 +38,7 @@ model {
   target += normal_lpdf(weight2M | 0,1);//population level mean
   target += normal_lpdf(tau[1]|0, .3) - normal_lccdf(0|0, .3); //population level sd
   target += normal_lpdf(tau[2]|0, .3) - normal_lccdf(0|0, .3); //population level sd
-  target += normal_lpdf(sigma|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(sigma|2, 1) - normal_lccdf(0|2, 1); //population level sd
   
   target += lkj_corr_cholesky_lpdf(L_u | 2); //lkj-prior ranging from -1 to 1, convient for correlations
   
