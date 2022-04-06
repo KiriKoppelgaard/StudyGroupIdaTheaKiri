@@ -297,6 +297,10 @@ samples_weighted <- mod_weighted$sample(
     max_treedepth = 20,
     adapt_delta = 0.99)
 
+```
+
+
+```{r}
 #Save draws
 draws_df <- as_draws_df(samples_weighted$draws())
 
@@ -304,16 +308,20 @@ draws_df <- as_draws_df(samples_weighted$draws())
 samples_weighted$summary()
 ```
 
+
 ##Plotting posteriors
+
+
+
 ```{r}
 #Plotting priors and posteriors for w1
 ggplot(draws_df) + 
-  geom_density(aes(w1_prior), color = 'red') + 
+  geom_density(aes(w1_prior_t), color = 'red') + 
     geom_density(aes(w1), color = 'blue')
 
 #Plotting priors and posteriors for w2
 ggplot(draws_df) + 
-  geom_density(aes(w2_prior), color = 'red') + 
+  geom_density(aes(w2_prior_t), color = 'red') + 
     geom_density(aes(w2), color = 'blue')
 
 #Plotting posteriors for sigma
@@ -324,6 +332,20 @@ ggplot(draws_df) +
 ggplot(draws_df) + 
     geom_density(aes(`tau[1]`), color = 'blue') + 
     geom_density(aes(`tau[2]`), color = 'green')
+
+#Prior predictive check 
+ggplot(draws_df) + 
+  geom_histogram(aes(`prior_preds[137,1]`*9),
+  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
+  ylab("Posterior Density") + theme_classic()
+
+#Has the model learned from the data? 
+ggplot(prior_data) +
+  geom_density(aes(bstay_posterior), fill="blue", alpha=0.3) + 
+  geom_density(aes(bstay_prior), fill="red", alpha=0.3) +   xlab("Rate") +
+  ylab("Posterior Density") +
+  theme_classic()
+
 
 ```
 
@@ -392,6 +414,26 @@ theme_classic()
 samples_simple$cmdstan_diagnose()
 ```
 
+#Compare model
+```{r}
+#Example code from Ricci
+Loo1 <- samples1$loo(save_psis = TRUE, cores = 3)
+plot(Loo1)
+
+Loo2 <- samples2$loo(save_psis = TRUE, cores = 2)
+plot(Loo2)
+
+d$diff_elpd <-
+  Loo2$pointwise[, "elpd_loo"] -
+  Loo1$pointwise[, "elpd_loo"]
+
+p1 <- ggplot(d, aes(x = trial, y = diff_elpd)) +
+  geom_point(alpha = .1) +
+  xlim(.5,1.01) +
+  ylim(-1.5,1.5) +
+  geom_hline(yintercept=0, color="red", linetype="dashed") +
+  theme_bw()
+```
 
 
 ---NOTES FROM CLASS
