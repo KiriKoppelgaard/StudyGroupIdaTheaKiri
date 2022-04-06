@@ -70,14 +70,12 @@ data_single <- list(
       SourceSelf = data_s$FirstRating/9,
       SourceOther = data_s$OtherRating/9
     )
-
-
 ```
 
 
 ```{r}
 #Import stan-file
-file_simple <- file.path("W8_simpleBayes_single.stan")
+file_simple <- file.path("W8_simpleBayes.stan")
 
 #Compiling
 mod_simple <- cmdstan_model(file_simple, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
