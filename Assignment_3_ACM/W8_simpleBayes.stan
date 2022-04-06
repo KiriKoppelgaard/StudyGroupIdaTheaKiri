@@ -9,6 +9,7 @@
 //    https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started
 //
 
+// line
 
 data {
   int<lower=0> N; //Number of trials
@@ -22,7 +23,8 @@ parameters {
 }
 
 model {
-  target += normal_lpdf(sigma | sd(y), sd(y)/2) - normal_lccdf(0|sd(y),sd(y)/2);
+  target += normal_lpdf(sigma | 2, 1) - normal_lccdf(0|2,1);
+  
   target += normal_lpdf(y | logit(SourceSelf)+logit(SourceOther), sigma);
 }
 
