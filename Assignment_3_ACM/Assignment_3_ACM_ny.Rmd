@@ -35,7 +35,7 @@ data$control <- ifelse(data$Group== "C", 1, 0)
 
 # Plot exploration
 ```{r}
-#Plot exploration
+#Plot exploration 
 ggplot(data, aes(x=Group, y=Feedback, fill = Group)) +
   geom_bar(stat = "summary", fun.y = "mean") +
   labs(title)
