@@ -36,8 +36,8 @@ transformed parameters{
 model {
   target += normal_lpdf(weight1M | 0,1);//population level mean
   target += normal_lpdf(weight2M | 0,1);//population level mean
-  target += normal_lpdf(tau[1]|0, 1) - normal_lccdf(0|0, 1); //population level sd
-  target += normal_lpdf(tau[2]|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(tau[1]|0, 1.5) - normal_lccdf(0|0, 1.5); //population level sd
+  target += normal_lpdf(tau[2]|0, 1.5) - normal_lccdf(0|0, 1.5); //population level sd
   target += normal_lpdf(sigma|0, .3) - normal_lccdf(0|0, .3); //population level sd
   
   target += lkj_corr_cholesky_lpdf(L_u | 2); //lkj-prior ranging from -1 to 1, convient for correlations
@@ -56,21 +56,36 @@ model {
 
 generated quantities{
   array[trials, participants] real log_lik;
+  array[trials, participants] real<lower=0, upper=1> prior_preds;
+  array[trials, participants] real<lower=0, upper=1> posterior_preds;
+
   real w1;
   real w2;
   real w1_prior;
   real w2_prior;
   
-  w1_prior = 0.5 + inv_logit(normal_rng(0,1))/2;
-  w2_prior = 0.5 + inv_logit(normal_rng(0,1))/2;
-  w1 = 0.5 + inv_logit(weight1M)/2;
-  w2 = 0.5 + inv_logit(weight2M)/2;
+
+  w1_prior = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
+  w2_prior = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
+  w1 = 0.5 + inv_logit(weight1M)/2; //convert posterior back to interpretable space between (0.5; 1)
+  w2 = 0.5 + inv_logit(weight2M)/2; //convert posterior back to interpretable space between (0.5; 1)
+
   
   for (participant in 1:participants){
     for (trial in 1:trials){  
       log_lik[trial, participant] = normal_lpdf(choice[trial, participant] | 
         weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
         weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]), 
+        sigma);
+      
+      prior_preds[trial, participant] = normal_lpdf(choice[trial, participant] | 
+        weight_f(SourceSelf[trial, participant], w1_prior + IDs[participant, 1]) + 
+        weight_f(SourceOther[trial, participant], w2_prior + IDs[participant, 2]) , 
+        sigma);
+        
+      posterior_preds[trial, participant] = normal_lpdf(choice[trial, participant] | 
+        weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
+        weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]) , 
         sigma);
     }
   }
