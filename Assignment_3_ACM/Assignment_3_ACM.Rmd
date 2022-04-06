@@ -41,12 +41,11 @@ data$control <- ifelse(data$Group== "C", 1, 0)
 ggplot(data, aes(x=Group, y=Feedback)) + geom_bar(stat = "summary", fun.y = "mean")
 
 ggplot(data, aes(x=Feedback, y=Change,fill="red")) +
-  #geom_jitter(alpha=0.1) +
   facet_wrap(~ Group) + 
   geom_bar(stat = "summary", fun.y = "mean") +
   theme_bw() + 
-  theme(legend.position="none")
-
+  theme(legend.position="none") +
+  ggtitle("Change as a function of feedback")
 
 #positive correlation. But individual differences:
 ggplot(data, aes(x=Change, y= Feedback, col=Group)) +
@@ -299,7 +298,6 @@ draws_df <- as_draws_df(samples_weighted$draws())
 
 #Print model summary
 samples_weighted$summary()
-
 ```
 
 ##Plotting posteriors

@@ -46,9 +46,9 @@ model {
 
   for (participant in 1:participants){
     for (trial in 1:trials){  
-      target += normal_lpdf(choice[trial, participant] | 
-        weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
-        weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]) , 
+      target += normal_lpdf(logit(choice[trial, participant]) | 
+        weight_f(logit(SourceSelf[trial, participant]), weight1M + IDs[participant, 1]) + 
+        weight_f(logit(SourceOther[trial, participant]), weight2M + IDs[participant, 2]) , 
         sigma);
     }
   }
@@ -63,30 +63,33 @@ generated quantities{
   real w2;
   real w1_prior;
   real w2_prior;
+  real w1_prior_t;
+  real w2_prior_t;
   
-
-  w1_prior = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
-  w2_prior = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
+  
+  w1_prior_t = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
+  w2_prior_t = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
+  w1_prior = logit(w1_prior_t); //generate prior distribution between (0.5; 1)
+  w2_prior = logit(w2_prior_t); //generate prior distribution between (0.5; 1)
   w1 = 0.5 + inv_logit(weight1M)/2; //convert posterior back to interpretable space between (0.5; 1)
   w2 = 0.5 + inv_logit(weight2M)/2; //convert posterior back to interpretable space between (0.5; 1)
-
   
   for (participant in 1:participants){
     for (trial in 1:trials){  
-      log_lik[trial, participant] = normal_lpdf(choice[trial, participant] | 
-        weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
-        weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]), 
+      log_lik[trial, participant] = normal_lpdf(logit(choice[trial, participant]) | 
+        weight_f(logit(SourceSelf[trial, participant]), weight1M + IDs[participant, 1]) + 
+        weight_f(logit(SourceOther[trial, participant]), weight2M + IDs[participant, 2]), 
         sigma);
       
-      prior_preds[trial, participant] = normal_rng(
-        weight_f(SourceSelf[trial, participant], w1_prior + IDs[participant, 1]) + 
-        weight_f(SourceOther[trial, participant], w2_prior + IDs[participant, 2]) , 
-        sigma);
+      prior_preds[trial, participant] = inv_logit(normal_rng(
+        weight_f(logit(SourceSelf[trial, participant]), w1_prior + IDs[participant, 1]) + 
+        weight_f(logit(SourceOther[trial, participant]), w2_prior + IDs[participant, 2]) , 
+        sigma));
         
-      posterior_preds[trial, participant] = normal_rng(
-        weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
-        weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]) , 
-        sigma);
+      posterior_preds[trial, participant] = inv_logit(normal_rng(
+        weight_f(logit(SourceSelf[trial, participant]), weight1M + IDs[participant, 1]) + 
+        weight_f(logit(SourceOther[trial, participant]), weight2M + IDs[participant, 2]) , 
+        sigma));
     }
   }
 }
