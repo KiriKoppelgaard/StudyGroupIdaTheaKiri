@@ -15,7 +15,7 @@ library(pacman)
 p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 #Load data
-data <- read.csv("data/sc_schizophrenia.csv")
+data <- read.csv("data/sc_schizophrenia_revised.csv")
 
 ```
 
