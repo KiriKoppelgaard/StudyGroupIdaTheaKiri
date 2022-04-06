@@ -11,30 +11,51 @@ functions{
 }
 
 data {
-  int<lower=0> N;
-  array[N] real y;
-  vector[N] SourceSelf;
-  vector[N] SourceOther;
+  int<lower=0> trials;//trials
+  int<lower=1> participants; //number of participants
+  array[trials, participants] real choice; //decisions
+  array[trials, participants] real SourceSelf;
+  array[trials, participants] real SourceOther;
 }
 
 parameters {
-  real weight1;
-  real weight2;
-  real<lower=0> sigma;
+  real weight1M;//population level mean weight (Self)
+  real weight2M;//population level mean weight (Other)
+  real<lower=0> sigma; //expected average error
+  vector<lower=0>[2] tau; //sd for population means, weight1M and weight2M (Vector containing 2 numbers)
+  matrix[2, participants] z_IDs; //z-scored individual deviation from population weight means (two for each participant)
+  cholesky_factor_corr[2] L_u; //weight correlation
 }
 
+transformed parameters{
+  matrix[participants, 2] IDs; //non-scaled individual deviations from population weight means (two for each participant)
+  IDs = (diag_pre_multiply(tau, L_u)*z_IDs)'; //weight multiplication with consideration of correlation between individual deviations within participant
+}
+
+
 model {
-  target += normal_lpdf(weight1 | 0,1);
-  target += normal_lpdf(weight2 | 0,1);
-  target += normal_lpdf(sigma | 0, 1) - normal_lccdf(0|0,1);
+  target += normal_lpdf(weight1M | 0,1);//population level mean
+  target += normal_lpdf(weight2M | 0,1);//population level mean
+  target += normal_lpdf(tau[1]|0, .3) - normal_lccdf(0|0, .3); //population level sd
+  target += normal_lpdf(tau[2]|0, .3) - normal_lccdf(0|0, .3); //population level sd
+  target += normal_lpdf(sigma|0, 1) - normal_lccdf(0|0, 1); //population level sd
   
-  for (n in 1:N){  
-  target += normal_lpdf(y[n] | weight_f(SourceSelf[n], weight1) + weight_f(SourceOther[n], weight2), sigma);
+  target += lkj_corr_cholesky_lpdf(L_u | 2); //lkj-prior ranging from -1 to 1, convient for correlations
+  
+  target += std_normal_lpdf(to_vector(z_IDs)); //sampling the scaled individual deviations
+
+  for (participant in 1:participants){
+    for (trial in 1:trials){  
+      target += normal_lpdf(choice[trial, participant] | 
+        weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
+        weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]) , 
+        sigma);
+    }
   }
 }
 
 generated quantities{
-  array[N] real log_lik;
+  array[trials, participants] real log_lik;
   real w1;
   real w2;
   real w1_prior;
@@ -42,12 +63,16 @@ generated quantities{
   
   w1_prior = 0.5 + inv_logit(normal_rng(0,1))/2;
   w2_prior = 0.5 + inv_logit(normal_rng(0,1))/2;
-  w1 = 0.5 + inv_logit(weight1)/2;
-  w2 = 0.5 + inv_logit(weight2)/2;
+  w1 = 0.5 + inv_logit(weight1M)/2;
+  w2 = 0.5 + inv_logit(weight2M)/2;
   
-  for (n in 1:N){  
-    log_lik[n] = normal_lpdf(y[n] | weight_f(SourceSelf[n], weight1) + weight_f(SourceOther[n], weight2), sigma);
+  for (participant in 1:participants){
+    for (trial in 1:trials){  
+      log_lik[trial, participant] = normal_lpdf(choice[trial, participant] | 
+        weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
+        weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]), 
+        sigma);
+    }
   }
-  
 }
 

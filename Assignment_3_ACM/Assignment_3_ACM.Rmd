@@ -219,6 +219,88 @@ theme_classic()
 samples_simple$cmdstan_diagnose()
 ```
 
+#Weighted Bayes for all participants
+
+```{r}
+#Import stan-file
+file <- file.path("W8_weightedBayes.stan")
+
+#Compiling
+mod_weighted <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+
+```
+
+```{r}
+#Create data 
+choices <- data %>% 
+  subset(select=c(ID, SecondRating))%>%
+  group_by(ID)%>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = SecondRating) %>%
+  select(!(row))
+
+SourceSelfs <- data %>% 
+  subset(select=c(ID, FirstRating))%>%
+  group_by(ID)%>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = FirstRating) %>%
+  select(!(row))
+
+SourceOthers <- data %>% 
+  subset(select=c(ID, OtherRating))%>%
+  group_by(ID)%>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = ID, values_from = OtherRating) %>%
+  select(!(row))
+
+data_all_levels <- list(
+      trials = max(data$Trial_Round2), 
+      participants = length(unique(data$ID)),
+      choice = choices/9,
+      SourceSelf = SourceSelfs/9,
+      SourceOther = SourceOthers/9
+    )
+
+```
+
+```{r}
+#Sampling
+samples_weighted <- mod_weighted$sample(
+    data = data_all_levels,
+    fixed_param = FALSE,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99)
+
+#Save draws
+draws_df <- as_draws_df(samples_weighted$draws())
+
+#Print model summary
+samples_simple$summary()
+
+```
+
+```{r}
+#Plotting model quality for weight1
+ggplot(draws_df, aes(.iteration, weight1, group=.chain, color=.chain)) +
+geom_line()+
+theme_classic()
+
+#Plotting model quality for weight2
+ggplot(draws_df, aes(.iteration, weight2, group=.chain, color=.chain)) +
+geom_line()+
+theme_classic()
+
+#Print model diagnostics
+samples_simple$cmdstan_diagnose()
+```
+
 
 
 
