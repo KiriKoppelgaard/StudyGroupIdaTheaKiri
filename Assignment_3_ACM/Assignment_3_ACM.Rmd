@@ -15,7 +15,7 @@ library(pacman)
 p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 #Load data
-data <- read.csv("data/sc_schizophrenia_revised.csv")
+data <- read.csv("data/sc_schizophrenia.csv")
 
 ```
 
@@ -294,6 +294,25 @@ samples_weighted <- mod_weighted$sample(
 
 #Save draws
 draws_df <- as_draws_df(samples_weighted$draws())
+
+ggplot(draws_df) + 
+  geom_density(aes(w1_prior), color = 'red') + 
+    geom_density(aes(w1), color = 'blue')
+
+ggplot(draws_df) + 
+  geom_density(aes(w2_prior), color = 'red') + 
+    geom_density(aes(w2), color = 'blue')
+
+ggplot(draws_df) + 
+    geom_density(aes(sigma), color = 'blue')
+
+
+ggplot(draws_df) + 
+    geom_density(aes(`tau[1]`), color = 'blue') + 
+    geom_density(aes(`tau[2]`), color = 'green')
+
+
+
 
 #Print model summary
 samples_weighted$summary()

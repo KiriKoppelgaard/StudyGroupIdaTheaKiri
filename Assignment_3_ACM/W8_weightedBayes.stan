@@ -36,9 +36,9 @@ transformed parameters{
 model {
   target += normal_lpdf(weight1M | 0,1);//population level mean
   target += normal_lpdf(weight2M | 0,1);//population level mean
-  target += normal_lpdf(tau[1]|0, .3) - normal_lccdf(0|0, .3); //population level sd
-  target += normal_lpdf(tau[2]|0, .3) - normal_lccdf(0|0, .3); //population level sd
-  target += normal_lpdf(sigma|2, 1) - normal_lccdf(0|2, 1); //population level sd
+  target += normal_lpdf(tau[1]|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(tau[2]|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(sigma|0, .3) - normal_lccdf(0|0, .3); //population level sd
   
   target += lkj_corr_cholesky_lpdf(L_u | 2); //lkj-prior ranging from -1 to 1, convient for correlations
   
