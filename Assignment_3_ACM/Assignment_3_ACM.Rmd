@@ -8,7 +8,7 @@ date: '2022-03-30'
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
+# Preprocessing
 ```{r}
 #load packages
 library(pacman)
@@ -18,7 +18,6 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 data <- read.csv("data/sc_schizophrenia.csv")
 
 ```
-
 
 ```{r}
 #Adding variables
@@ -31,8 +30,11 @@ data <- na.omit(data)
 mean(data$Change[data$Group== "S"])
 mean(data$Change[data$Group== "C"])
 
+```
 
-#PLOT EXPLORATION
+# Plot exploration
+```{r}
+#Plot exploration
 ggplot(data, aes(x=Group, y=Feedback)) + geom_bar(stat = "summary", fun.y = "mean")
 
 ggplot(data, aes(x=Feedback, y=Change,fill="red")) +
@@ -50,8 +52,8 @@ ggplot(data, aes(x=Change, y= Feedback, col=Group)) +
 ggplot(data, aes(x=FirstRating, y= Feedback, col=Group)) +
   geom_point() +
   facet_wrap(~ID)
-
 ```
+
 
 #Simple Bayes for a single participant
 ```{r}
