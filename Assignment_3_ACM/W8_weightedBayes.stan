@@ -78,12 +78,12 @@ generated quantities{
         weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]), 
         sigma);
       
-      prior_preds[trial, participant] = normal_lpdf(choice[trial, participant] | 
+      prior_preds[trial, participant] = normal_rng(
         weight_f(SourceSelf[trial, participant], w1_prior + IDs[participant, 1]) + 
         weight_f(SourceOther[trial, participant], w2_prior + IDs[participant, 2]) , 
         sigma);
         
-      posterior_preds[trial, participant] = normal_lpdf(choice[trial, participant] | 
+      posterior_preds[trial, participant] = normal_rng(
         weight_f(SourceSelf[trial, participant], weight1M + IDs[participant, 1]) + 
         weight_f(SourceOther[trial, participant], weight2M + IDs[participant, 2]) , 
         sigma);

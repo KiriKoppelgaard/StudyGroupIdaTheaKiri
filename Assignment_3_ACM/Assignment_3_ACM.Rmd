@@ -41,10 +41,12 @@ data$control <- ifelse(data$Group== "C", 1, 0)
 ggplot(data, aes(x=Group, y=Feedback)) + geom_bar(stat = "summary", fun.y = "mean")
 
 ggplot(data, aes(x=Feedback, y=Change,fill="red")) +
-  geom_jitter(alpha=0.1) +
+  #geom_jitter(alpha=0.1) +
   facet_wrap(~ Group) + 
   geom_bar(stat = "summary", fun.y = "mean") +
-  theme_bw()
+  theme_bw() + 
+  theme(legend.position="none")
+
 
 #positive correlation. But individual differences:
 ggplot(data, aes(x=Change, y= Feedback, col=Group)) +
@@ -250,10 +252,10 @@ SourceOthers <- data %>%
 #Trying to subset data
 data_all_levels <- list(
       trials = max(data$Trial_Round2), 
-      participants = length(unique(data$ID[data$ID %in% c(101, 103, 317)])), #length(unique(data$ID)),
-      choice = choices[, c('101', '103', '317')]/9,
-      SourceSelf = SourceSelfs[, c('101', '103', '317')]/9,
-      SourceOther = SourceOthers[, c('101', '103', '317')]/9#,
+      participants = length(unique(data$ID[data$ID %in% c(101, 103)])), #length(unique(data$ID)),
+      choice = choices[, c('101', '103')]/9,
+      SourceSelf = SourceSelfs[, c('101', '103')]/9,
+      SourceOther = SourceOthers[, c('101', '103')]/9#,
       #schizo = data$schizo[data$ID %in% c(101, 103, 317)],
       #control = data$control[data$ID %in% c(101, 103, 317)]
     )
@@ -295,30 +297,28 @@ samples_weighted <- mod_weighted$sample(
 #Save draws
 draws_df <- as_draws_df(samples_weighted$draws())
 
-
-
 #Print model summary
 samples_weighted$summary()
 
 ```
 
-
+##Plotting posteriors
 ```{r}
-#Plotting priors for w1
+#Plotting priors and posteriors for w1
 ggplot(draws_df) + 
   geom_density(aes(w1_prior), color = 'red') + 
     geom_density(aes(w1), color = 'blue')
 
-#Plotting priors for w2
+#Plotting priors and posteriors for w2
 ggplot(draws_df) + 
   geom_density(aes(w2_prior), color = 'red') + 
     geom_density(aes(w2), color = 'blue')
 
-#Plotting priors for sigma
+#Plotting posteriors for sigma
 ggplot(draws_df) + 
     geom_density(aes(sigma), color = 'blue')
 
-#Plotting priors for tau
+#Plotting posteriors for tau
 ggplot(draws_df) + 
     geom_density(aes(`tau[1]`), color = 'blue') + 
     geom_density(aes(`tau[2]`), color = 'green')
