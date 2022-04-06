@@ -310,19 +310,20 @@ samples_weighted$summary()
 
 
 ##Plotting posteriors
-
-
-
 ```{r}
-#Plotting priors and posteriors for w1
-ggplot(draws_df) + 
-  geom_density(aes(w1_prior_t), color = 'red') + 
-    geom_density(aes(w1), color = 'blue')
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+ggplot(draws_df) +
+  geom_density(aes(w1), fill="blue", alpha=0.3) + 
+  geom_density(aes(w1_prior_t), fill="red", alpha=0.3) +   xlab("w1") +
+  ylab("Posterior Density") +
+  theme_classic()
 
-#Plotting priors and posteriors for w2
-ggplot(draws_df) + 
-  geom_density(aes(w2_prior_t), color = 'red') + 
-    geom_density(aes(w2), color = 'blue')
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+ggplot(draws_df) +
+  geom_density(aes(w2), fill="blue", alpha=0.3) + 
+  geom_density(aes(w2_prior_t), fill="red", alpha=0.3) +   xlab("w2") +
+  ylab("Posterior Density") +
+  theme_classic()
 
 #Plotting posteriors for sigma
 ggplot(draws_df) + 
@@ -333,19 +334,28 @@ ggplot(draws_df) +
     geom_density(aes(`tau[1]`), color = 'blue') + 
     geom_density(aes(`tau[2]`), color = 'green')
 
+#Plotting posterior predictions vs. actual ratings
+ggplot() + 
+  geom_histogram(aes(data$SecondRating), color="darkblue", fill="blue", alpha=0.3) + 
+  geom_density(aes(round(draws_df$`prior_preds[137,1]`*9, 0)), color="green", fill="green", alpha=0.3) + 
+  xlab("Predicted ratings out of 137 trials") + 
+  ylab("Posterior Density") + 
+  theme_classic()
+
+
+
 #Prior predictive check 
 ggplot(draws_df) + 
   geom_histogram(aes(`prior_preds[137,1]`*9),
   color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
-  ylab("Posterior Density") + theme_classic()
-
-#Has the model learned from the data? 
-ggplot(prior_data) +
-  geom_density(aes(bstay_posterior), fill="blue", alpha=0.3) + 
-  geom_density(aes(bstay_prior), fill="red", alpha=0.3) +   xlab("Rate") +
-  ylab("Posterior Density") +
+  ylab("Posterior Density") + 
+  
   theme_classic()
 
+  
+#testing new plot
+ggplot(draws_df) +
+  geom_density(aes(`prior_preds[137,1]`*9))
 
 ```
 
