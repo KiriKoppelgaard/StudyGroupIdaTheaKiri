@@ -16,7 +16,6 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 #Load data
 data <- read.csv("data/sc_schizophrenia.csv")
-
 ```
 
 ```{r}
@@ -32,31 +31,36 @@ mean(data$Change[data$Group== "C"])
 
 data$schizo <- ifelse(data$Group== "S", 1, 0)
 data$control <- ifelse(data$Group== "C", 1, 0)
-
 ```
 
 # Plot exploration
 ```{r}
 #Plot exploration
-ggplot(data, aes(x=Group, y=Feedback)) + geom_bar(stat = "summary", fun.y = "mean")
+ggplot(data, aes(x=Group, y=Feedback, fill = Group)) +
+  geom_bar(stat = "summary", fun.y = "mean") +
+  labs(title)
 
-ggplot(data, aes(x=Feedback, y=Change,fill="red")) +
+ggplot(data, aes(x=Feedback, y=Change, fill = Group)) +
   #geom_jitter(alpha=0.1) +
   facet_wrap(~ Group) + 
   geom_bar(stat = "summary", fun.y = "mean") +
   theme_bw() + 
-  theme(legend.position="none")
+  theme(legend.position="none") +
+  labs(title = 'Correlation btw. feedback and change (for controls and schizophrenics)')
 
 
 #positive correlation. But individual differences:
-ggplot(data, aes(x=Change, y= Feedback, col=Group)) +
+ggplot(data, aes(x=Feedback, y= Change, col=Group)) +
   geom_point() +
-  facet_wrap(~ID)
+  facet_wrap(~ID) +
+  labs(title = 'Individual correlations btw. feedback and change')
+
 
 #individual differences in how the scale is used + restrictions (see notes):
 ggplot(data, aes(x=FirstRating, y= Feedback, col=Group)) +
   geom_point() +
-  facet_wrap(~ID)
+  facet_wrap(~ID) +
+  labs(title = 'Individual correlations btw. first rating and feedback')
 ```
 
 
