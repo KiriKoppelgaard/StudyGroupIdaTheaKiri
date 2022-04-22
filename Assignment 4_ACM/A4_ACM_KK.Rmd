@@ -17,7 +17,16 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 # Part 1
 
-You have to design a study (aka plan the number of trials) assuming that people are using a reinforcement learning process to pick between 2 stimuli. In this study you expect there to be 2 conditions and the 1 participant playing the game will vary its learning rate between conditions. The difference in learning rate is .2: condition 1 has x - .1 and condition 2 x + .1, with x = 0.7. The temperature is the same: 0.5.
+You have to design a study (aka plan the number of trials) assuming that people are using a reinforcement learning process to pick between 2 stimuli. In this study you expect there to be 2 conditions and the 1 participant playing the game will vary its learning rate between conditions. 
+
+The difference in learning rate is .2: 
+
+condition 1: x - .1
+condition 2: x + .1
+
+with x = 0.7. 
+
+The temperature (tau) is the same: 0.5.
 Identify a feasible number of trials and motivate it.
 
 ## Simulating data
@@ -116,6 +125,7 @@ for(i in 1:trials){
 d <- rbind(d, d2)  
 
 ```
+
 
 
 [optional]: what happens if x is not = +.7 (tip: test a range of different x)?
