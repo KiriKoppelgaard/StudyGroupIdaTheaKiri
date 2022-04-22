@@ -1,0 +1,107 @@
+---
+title: "A4_ACM"
+output: html_document
+date: '2022-04-22'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#libraries
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
+
+```
+
+```{r}
+# cool stuff
+
+```
+
+# Part 1
+
+You have to design a study (aka plan the number of trials) assuming that people are using a reinforcement learning process to pick between 2 stimuli. In this study you expect there to be 2 conditions and the 1 participant playing the game will vary its learning rate between conditions. 
+
+The difference in learning rate is .2: 
+
+condition 1: x - .1
+condition 2: x + .1
+
+with x = 0.7. 
+
+The temperature (tau) is the same: 0.5.
+Identify a feasible number of trials and motivate it.
+
+## Simulating data
+
+### Functions 
+```{r}
+
+softmax <- function(x,tau) {
+  outcome = 1/(1+exp(-tau*x))
+  return(outcome) #the choice that is made
+}
+
+ValueUpdate = function(value, alpha, choice, feedback){
+  PE <- feedback - value
+  
+  v1 <- value[1] + alpha * (1-choice) * (feedback - value[1])
+  
+  v2 <- value[2] + alpha * (choice) * (feedback - value[2])
+  
+  updatedValue <- c(v1, v2)
+}
+
+```
+
+```{r}
+value <- c(0.5, 0.5)
+alpha <- c(0.6, 0.8)
+temperature <- 0.5
+choice <- 0
+feedback <- -1
+p <- 0.75
+
+ValueUpdate(value, aplpha, choice, feedback)
+
+d <- tibble(choice = rep(NA, trials),
+		value1 = rep(NA, trials), 
+		value2 = rep(NA, trials),
+		feedback = rep(NA, trials))
+
+```
+
+```{r}
+Bot <- rbinom(trials, 1, p)
+
+for(i in 1:trials){
+	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
+	feedback <- ifelse(Bot[i] == choice, 1, 0)
+	value <- ValueUpdate(value, alpha, choice, feedback)
+	d$choice[i] <- choice
+	d$value1[i] <- value[1]
+	d$value2[i] <- value[2]
+	d$feedback[i] <- feedback 
+}
+```
+
+
+
+[optional]: what happens if x is not = +.7 (tip: test a range of different x)?
+[optional]: what happens if temperature is not 0.5, but 5?
+
+# Part 2
+Given the large number of trials required, could you imagine producing an iterated design? E.g. a phone app where you can do a smaller number of trials (e.g. 10-20 or even 100, up to you!) in separate sessions, each time a posterior is generated and it is used as prior in the next time.
+Assuming no variance over time (ah!) can you figure out a good trade off between how many trials per session and number of sessions?
+
+
+
+
+
+
+[optional]: what are the differences in just re-running the model on the cumulative dataset (increased at every session) vs passing the posterior? Differences in terms of computational time, estimates, but also practical implication for running your study.
+[optional]: what happens if learning rate changes a bit across sessions? Include a variation between sessions according to a normal distribution with a mean of 0 and a sd of 0.02. Re-assess the number of trials/sessions used.
+
+
