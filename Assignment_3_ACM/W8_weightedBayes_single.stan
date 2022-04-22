@@ -50,4 +50,3 @@ generated quantities{
   }
   
 }
-

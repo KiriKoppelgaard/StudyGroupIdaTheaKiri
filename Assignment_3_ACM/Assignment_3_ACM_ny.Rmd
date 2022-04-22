@@ -24,22 +24,22 @@ data <- data %>%
   mutate(Change = FirstRating - SecondRating) %>%
   mutate(Group = as.factor(ifelse(ID >=200, "C", "S"))) %>%
   mutate(Feedback = FirstRating - OtherRating)
+
+#Remove NA's
 data <- na.omit(data)
 
-mean(data$Change[data$Group== "S"])
-mean(data$Change[data$Group== "C"])
-
+#Creating two new variables to input to the model 
 data$schizo <- ifelse(data$Group== "S", 1, 0)
 data$control <- ifelse(data$Group== "C", 1, 0)
 ```
 
 # Plot exploration
 ```{r}
-#Plot exploration 
+#Feedback for the two groups 
 ggplot(data, aes(x=Group, y=Feedback, fill = Group)) +
-  geom_bar(stat = "summary", fun.y = "mean") +
-  labs(title)
+  geom_bar(stat = "summary", fun.y = "mean") 
 
+#Correlation btw. feedback and change (for controls and schizophrenics
 ggplot(data, aes(x=Feedback, y=Change, fill = Group)) +
   facet_wrap(~ Group) + 
   geom_bar(stat = "summary", fun.y = "mean") +
@@ -47,13 +47,11 @@ ggplot(data, aes(x=Feedback, y=Change, fill = Group)) +
   theme(legend.position="none") +
   labs(title = 'Correlation btw. feedback and change (for controls and schizophrenics)')
 
-
 #positive correlation. But individual differences:
 ggplot(data, aes(x=Feedback, y= Change, col=Group)) +
   geom_point() +
   facet_wrap(~ID) +
   labs(title = 'Individual correlations btw. feedback and change')
-
 
 #individual differences in how the scale is used + restrictions (see notes):
 ggplot(data, aes(x=FirstRating, y= Feedback, col=Group)) +
@@ -112,7 +110,7 @@ samples_simple$summary()
 
 
 ```{r}
-#Plotting model quality for weight1
+#Plotting model quality
 ggplot(draws_df, aes(.iteration, sigma, group=.chain, color=.chain)) +
 geom_line()+
 theme_classic()
@@ -133,15 +131,6 @@ data_all <- list(
     )
 ```
 
-
-```{r}
-#Import stan-file
-file_simple <- file.path("W8_simpleBayes.stan")
-
-#Compiling
-mod_simple <- cmdstan_model(file_simple, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
-
-```
 
 ```{r}
 #Sampling
@@ -167,16 +156,14 @@ samples_simple$summary()
 ```
 
 ```{r}
-#Plotting model quality for weight1
+#Plotting model quality
 ggplot(draws_df, aes(.iteration, sigma, group=.chain, color=.chain)) +
 geom_line()+
 theme_classic()
 
-
 #Print model diagnostics
 samples_simple$cmdstan_diagnose()
 ```
-
 
 #Weighted Bayes for a single participant
 
@@ -209,7 +196,6 @@ draws_df <- as_draws_df(samples_weighted$draws())
 
 #Print model summary
 samples_simple$summary()
-
 ```
 
 ```{r}
@@ -227,7 +213,7 @@ theme_classic()
 samples_simple$cmdstan_diagnose()
 ```
 
-#Weighted Bayes for all participants
+#Weighted Bayes for all participants, multi-level model
 
 ```{r}
 #Create data 
@@ -291,10 +277,10 @@ samples_weighted <- mod_weighted$sample(
     chains = 2,
     parallel_chains = 2,
     threads_per_chain = 2,
-    iter_warmup = 1000,
-    iter_sampling = 1000,
+    iter_warmup = 500,
+    iter_sampling = 500,
     refresh = 10,
-    max_treedepth = 20,
+    max_treedepth = 15,
     adapt_delta = 0.99)
 
 ```
@@ -353,6 +339,7 @@ ggplot(draws_df) +
   theme_classic()
 
   
+#GOT TILL HERE! 
 #testing new plot
 ggplot(draws_df) +
   geom_density(aes(`prior_preds[137,1]`*9))
