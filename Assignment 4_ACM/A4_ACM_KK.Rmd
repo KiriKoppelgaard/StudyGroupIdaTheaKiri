@@ -126,6 +126,15 @@ d <- rbind(d, d2)
 
 ```
 
+```{r}
+data <- list(
+      trials = trials, 
+      feedback = d$feedback,
+      choice = d$choice,
+      condition1 = ifelse(d$condition == 0.8, 1, 0),
+      condition2 = 1 - ifelse(d$condition == 0.8, 1, 0)
+          )
+```
 
 
 [optional]: what happens if x is not = +.7 (tip: test a range of different x)?
