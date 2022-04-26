@@ -56,8 +56,8 @@ model {
 
 generated quantities{
   array[trials, participants] real log_lik;
-  array[trials, participants] real<lower=0, upper=1> prior_preds;
-  array[trials, participants] real<lower=0, upper=1> posterior_preds;
+  array[participants] real<lower=0, upper=1> prior_preds;
+  array[participants] real<lower=0, upper=1> posterior_preds;
 
   real w1;
   real w2;
@@ -80,17 +80,17 @@ generated quantities{
         weight_f(logit(SourceSelf[trial, participant]), weight1M + IDs[participant, 1]) + 
         weight_f(logit(SourceOther[trial, participant]), weight2M + IDs[participant, 2]), 
         sigma);
-      
-      prior_preds[trial, participant] = inv_logit(normal_rng(
-        weight_f(logit(SourceSelf[trial, participant]), w1_prior + IDs[participant, 1]) + 
-        weight_f(logit(SourceOther[trial, participant]), w2_prior + IDs[participant, 2]) , 
+    }
+    
+    prior_preds[participant] = inv_logit(normal_rng(
+        weight_f(logit(mean(SourceSelf[, participant])), w1_prior + IDs[participant, 1]) + 
+        weight_f(logit(mean(SourceOther[, participant])), w2_prior + IDs[participant, 2]) , 
         sigma));
         
-      posterior_preds[trial, participant] = inv_logit(normal_rng(
-        weight_f(logit(SourceSelf[trial, participant]), weight1M + IDs[participant, 1]) + 
-        weight_f(logit(SourceOther[trial, participant]), weight2M + IDs[participant, 2]) , 
+    posterior_preds[participant] = inv_logit(normal_rng(
+        weight_f(logit(mean(SourceSelf[, participant])), weight1M + IDs[participant, 1]) + 
+        weight_f(logit(mean(SourceOther[, participant])), weight2M + IDs[participant, 2]) , 
         sigma));
-    }
   }
   
   

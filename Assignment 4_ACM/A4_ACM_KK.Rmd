@@ -127,6 +127,7 @@ d <- rbind(d, d2)
 ```
 
 ```{r}
+#prepare data block
 data <- list(
       trials = trials, 
       feedback = d$feedback,

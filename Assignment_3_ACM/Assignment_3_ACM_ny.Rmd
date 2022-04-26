@@ -322,28 +322,23 @@ ggplot(draws_df) +
 
 #Plotting posterior predictions vs. actual ratings
 ggplot() + 
-  geom_histogram(aes(data$SecondRating), color="darkblue", fill="blue", alpha=0.3) + 
-  geom_density(aes(round(draws_df$`prior_preds[137,1]`*9, 0)), color="green", fill="green", alpha=0.3) + 
+  geom_histogram(aes(data$SecondRating[data$ID == 103]), color="darkblue", fill="blue", alpha=0.3) + 
+  geom_histogram(aes(round(draws_df$`posterior_preds[1]`*9, 0)[1:153]), color="green", fill="green", alpha=0.3) + 
   xlab("Predicted ratings out of 137 trials") + 
   ylab("Posterior Density") + 
   theme_classic()
 
 
-
-#Prior predictive check 
-ggplot(draws_df) + 
-  geom_histogram(aes(`prior_preds[137,1]`*9),
-  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
-  ylab("Posterior Density") + 
-  
-  theme_classic()
-
-  
-#GOT TILL HERE! 
-#testing new plot
+#Prior and posterior predictions for participant 1
 ggplot(draws_df) +
-  geom_density(aes(`prior_preds[137,1]`*9))
-
+#  geom_histogram(aes(data_all_levels$choice[1]*9)) + 
+  geom_histogram(aes(`posterior_preds[1]`*9),
+  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
+  geom_histogram(aes(`prior_preds[1]`*9),
+  color="darkblue", fill="red", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
+  ylab("Posterior Density") + 
+  theme_classic() + 
+  labs(title = 'Prior and posterior predictions for participant 103')
 ```
 
 ```{r}
@@ -393,6 +388,19 @@ draws_df <- as_draws_df(samples_weighted$draws())
 
 #Print model summary
 samples_simple$summary()
+
+```
+
+```{r}
+#Prior and posterior predictions for participant 1
+ggplot(draws_df) + 
+  geom_histogram(aes(`posterior_preds`*9),
+  color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
+  geom_histogram(aes(`prior_preds[137,1]`*9),
+  color="darkblue", fill="red", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
+  ylab("Posterior Density") + 
+  theme_classic() + 
+  labs(title = 'Prior and posterior predictions for participant 1s trial 137')
 
 ```
 

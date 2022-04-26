@@ -16,8 +16,8 @@ data {
   array[trials, participants] real<lower=0> choice; //decisions
   array[trials, participants] real<lower=0> SourceSelf;
   array[trials, participants] real<lower=0> SourceOther;
-  vector[participants] schizo;
-  vector[participants] control;
+  vector[trials*participants] schizo;
+  vector[trials*participants] control;
 }
 
 parameters {
@@ -79,9 +79,73 @@ model {
 }
 
 generated quantities{
+  array[trials, participants] real log_lik;
+  array[participants]real<lower=0, upper=1> prior_preds;
+  array[participants]real<lower=0, upper=1> posterior_preds;
 
-//depends on the simple version
+
+  real w1S;
+  real w1C;
+  real w2S;
+  real w2C;
+  real w1_prior;
+  real w2_prior;
+  real w1_prior_t;
+  real w2_prior_t;
+  
+  
+  w1_prior_t = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
+  w2_prior_t = 0.5 + inv_logit(normal_rng(0,1))/2; //generate prior distribution between (0.5; 1)
+  w1_prior = logit(w1_prior_t); //generate prior distribution between (0.5; 1)
+  w2_prior = logit(w2_prior_t); //generate prior distribution between (0.5; 1)
+  w1S = 0.5 + inv_logit(weight1MS)/2; //convert posterior back to interpretable space between (0.5; 1)
+  w1C = 0.5 + inv_logit(weight1MC)/2; //convert posterior back to interpretable space between (0.5; 1)
+  w2S = 0.5 + inv_logit(weight2MS)/2; //convert posterior back to interpretable space between (0.5; 1)
+  w2C = 0.5 + inv_logit(weight2MC)/2; //convert posterior back to interpretable space between (0.5; 1)
+  
+  for (participant in 1:participants){
+    for (trial in 1:trials){  
+      log_lik[trial, participant] = normal_lpdf(choice[trial, participant] | 
+        weight_f(SourceSelf[trial, participant], 
+          schizo[participant]*(weight1MS + IDSs[participant, 1]) + 
+          control[participant]*(weight1MC + IDCs[participant, 1])) + 
+          
+        weight_f(SourceOther[trial, participant], 
+           schizo[participant]*(weight2MS + IDSs[participant, 2]) + 
+           control[participant]*(weight2MC + IDCs[participant, 2])), 
+          
+        schizo[participant] * sigmaS + control[participant] * sigmaC);
     }
+    
+    //prior predictions
+    prior_preds[participant] =  inv_logit(normal_rng( 
+    weight_f(logit(mean(SourceSelf[,participant])), 
+    schizo[participant]*(w1_prior + IDSs[participant, 1]) + 
+    control[participant]*(w1_prior + IDCs[participant, 1])) + 
+          
+    weight_f(logit(mean(SourceOther[,participant])), 
+    schizo[participant]*(w2_prior + IDSs[participant, 2]) + 
+    control[participant]*(w2_prior + IDCs[participant, 2])), 
+          
+    schizo[participant] * sigmaS + control[participant] * sigmaC));
+    
+    //posterior predictions
+    posterior_preds[participant] =  inv_logit(normal_rng( 
+    weight_f(logit(mean(SourceSelf[,participant])), 
+    schizo[participant]*(weight1MS + IDSs[participant, 1]) + 
+    control[participant]*(weight1MC + IDCs[participant, 1])) + 
+          
+    weight_f(logit(mean(SourceOther[,participant])), 
+    schizo[participant]*(weight2MS + IDSs[participant, 2]) + 
+    control[participant]*(weight2MC + IDCs[participant, 2])), 
+          
+    schizo[participant] * sigmaS + control[participant] * sigmaC));
+    
+    
   }
+  
+  
+  
+  
 }
 
