@@ -49,13 +49,13 @@ model {
   target += normal_lpdf(weight1MC | 0,1);//population level mean
   target += normal_lpdf(weight2MC | 0,1);//population level mean
   
-  target += normal_lpdf(tauS[1]|0, .3) - normal_lccdf(0|0, .3); //population level sd
-  target += normal_lpdf(tauS[2]|0, .3) - normal_lccdf(0|0, .3); //population level sd
-  target += normal_lpdf(tauC[1]|0, .3) - normal_lccdf(0|0, .3); //population level sd
-  target += normal_lpdf(tauC[2]|0, .3) - normal_lccdf(0|0, .3); //population level sd
+  target += normal_lpdf(tauS[1]|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(tauS[2]|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(tauC[1]|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(tauC[2]|0, 1) - normal_lccdf(0|0, 1); //population level sd
   
-  target += normal_lpdf(sigmaS|0, 1) - normal_lccdf(0|0, 1); //population level sd
-  target += normal_lpdf(sigmaC|0, 1) - normal_lccdf(0|0, 1); //population level sd
+  target += normal_lpdf(sigmaS|0, .5) - normal_lccdf(0|0, .5); //population level sd
+  target += normal_lpdf(sigmaC|0, .5) - normal_lccdf(0|0, .5); //population level sd
   
   target += lkj_corr_cholesky_lpdf(L_u | 2); //lkj-prior ranging from -1 to 1, convient for correlations
   
