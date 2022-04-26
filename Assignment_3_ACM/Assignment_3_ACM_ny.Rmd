@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 #load packages
 library(pacman)
-p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms, patchwork)
 
 #Load data
 data <- read.csv("data/sc_schizophrenia.csv")
@@ -33,7 +33,7 @@ data$schizo <- ifelse(data$Group== "S", 1, 0)
 data$control <- ifelse(data$Group== "C", 1, 0)
 ```
 
-# Plot exploration
+# Plot exploration of data
 ```{r}
 #Feedback for the two groups 
 ggplot(data, aes(x=Group, y=Feedback, fill = Group)) +
@@ -60,8 +60,7 @@ ggplot(data, aes(x=FirstRating, y= Feedback, col=Group)) +
   labs(title = 'Individual correlations btw. first rating and feedback')
 ```
 
-
-#Simple Bayes for a single participant
+#Simple Bayes for one single participant, 103
 ```{r}
 #Select data for single object 
 data_s <- data[data$ID=="103",]
@@ -74,7 +73,6 @@ data_single <- list(
       SourceOther = data_s$OtherRating/9
     )
 ```
-
 
 ```{r}
 #Import stan-file
@@ -108,7 +106,6 @@ samples_simple$summary()
 
 ```
 
-
 ```{r}
 #Plotting model quality
 ggplot(draws_df, aes(.iteration, sigma, group=.chain, color=.chain)) +
@@ -120,35 +117,51 @@ theme_classic()
 samples_simple$cmdstan_diagnose()
 ```
 
+## Selecting 10 participants to run the analyses on to save time
+```{r}
+#selecting 10 participants 
+the_selected_ones <- c(head(unique(data$ID), n =5), tail(unique(data$ID), n =5))
+
+data_subset <- data[data$ID %in% the_selected_ones,]
+
+```
+
 #Simple Bayes for all participants, full pooling
 ```{r}
 #Create data 
-data_all <- list(
-      N = length(data$SecondRating), 
-      y = data$SecondRating/9,
-      SourceSelf = data$FirstRating/9,
-      SourceOther = data$OtherRating/9
-    )
+# data_all <- list(
+#       N = length(data$SecondRating), 
+#       y = data$SecondRating/9,
+#       SourceSelf = data$FirstRating/9,
+#       SourceOther = data$OtherRating/9
+#     )
+
+some_simple_data <- list(
+  N = length(data_subset$SecondRating), 
+  y = data_subset$SecondRating/9,
+  SourceSelf = data_subset$FirstRating/9,
+  SourceOther = data_subset$OtherRating/9
+  )
 ```
 
 
 ```{r}
 #Sampling
 samples_simple <- mod_simple$sample(
-    data = data_all,
+    data = some_simple_data,
     fixed_param = FALSE,
     seed = 123,
     chains = 2,
     parallel_chains = 2,
     threads_per_chain = 2,
-    iter_warmup = 1000,
-    iter_sampling = 1000,
-    refresh = 1000,
+    iter_warmup = 500,
+    iter_sampling = 500,
+    refresh = 500,
     max_treedepth = 20,
     adapt_delta = 0.99)
 
 #Save draws
-draws_df <- as_draws_df(samples_simple$draws())
+simple_draws_df <- as_draws_df(samples_simple$draws())
 
 #print model summary
 samples_simple$summary()
@@ -157,7 +170,7 @@ samples_simple$summary()
 
 ```{r}
 #Plotting model quality
-ggplot(draws_df, aes(.iteration, sigma, group=.chain, color=.chain)) +
+ggplot(simple_draws_df, aes(.iteration, sigma, group=.chain, color=.chain)) +
 geom_line()+
 theme_classic()
 
@@ -165,7 +178,7 @@ theme_classic()
 samples_simple$cmdstan_diagnose()
 ```
 
-#Weighted Bayes for a single participant
+#Weighted Bayes for one single participant, 103
 
 ```{r}
 #Import stan-file
@@ -211,51 +224,42 @@ theme_classic()
 
 #Print model diagnostics
 samples_simple$cmdstan_diagnose()
+
 ```
 
-#Weighted Bayes for all participants, multi-level model
+#Weighted Bayes for 10 participants, multi-level model
 
 ```{r}
 #Create data 
-choices <- data %>% 
+choices <- data_subset %>% 
   subset(select=c(ID, SecondRating))%>%
   group_by(ID)%>%
   mutate(row = row_number()) %>% 
   pivot_wider(names_from = ID, values_from = SecondRating) %>%
   select(!(row))
 
-SourceSelfs <- data %>% 
+SourceSelfs <- data_subset %>% 
   subset(select=c(ID, FirstRating))%>%
   group_by(ID)%>%
   mutate(row = row_number()) %>% 
   pivot_wider(names_from = ID, values_from = FirstRating) %>%
   select(!(row))
 
-SourceOthers <- data %>% 
+SourceOthers <- data_subset %>% 
   subset(select=c(ID, OtherRating))%>%
   group_by(ID)%>%
   mutate(row = row_number()) %>% 
   pivot_wider(names_from = ID, values_from = OtherRating) %>%
   select(!(row))
 
-#Trying to subset data
-data_all_levels <- list(
-      trials = max(data$Trial_Round2), 
-      participants = length(unique(data$ID[data$ID %in% c(101, 103)])), #length(unique(data$ID)),
-      choice = choices[, c('101', '103')]/9,
-      SourceSelf = SourceSelfs[, c('101', '103')]/9,
-      SourceOther = SourceOthers[, c('101', '103')]/9#,
-      #schizo = data$schizo[data$ID %in% c(101, 103, 317)],
-      #control = data$control[data$ID %in% c(101, 103, 317)]
-    )
-
-data_all_levels <- list(
-      trials = max(data$Trial_Round2), 
-      participants = length(unique(data$ID)),
-      choice = choices/9,
-      SourceSelf = SourceSelfs/9,
-      SourceOther = SourceOthers/9
-    )
+#run on data for the 10 participants
+data_10_levels <- list(
+  trials = max(data_subset$Trial_Round2), 
+  participants = length(unique(data_subset$ID)),
+  choice = choices/9,
+  SourceSelf = SourceSelfs/9,
+  SourceOther = SourceOthers/9
+  )
 
 ```
 
@@ -271,7 +275,7 @@ mod_weighted <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), ped
 ```{r}
 #Sampling
 samples_weighted <- mod_weighted$sample(
-    data = data_all_levels,
+    data = data_10_levels,
     fixed_param = FALSE,
     seed = 123,
     chains = 2,
@@ -288,41 +292,52 @@ samples_weighted <- mod_weighted$sample(
 
 ```{r}
 #Save draws
-draws_df <- as_draws_df(samples_weighted$draws())
+weighted_draws_df <- as_draws_df(samples_weighted$draws())
 
 #Print model summary
 samples_weighted$summary()
+
+#Plotting model quality for weight1
+plot_w1 <- ggplot(weighted_draws_df, aes(.iteration, weight1M, group=.chain, color=.chain)) + geom_line()+ theme_classic()
+
+#Plotting model quality for weight2
+plot_w2 <- ggplot(weighted_draws_df, aes(.iteration, weight2M, group=.chain, color=.chain)) + geom_line()+ theme_classic()
+
+plot_w1+plot_w2
+
+#Print model diagnostics
+samples_weighted$cmdstan_diagnose()
 ```
 
 
 ##Plotting posteriors
 ```{r}
 #Plotting prior and posterior for weights: Has the model learned from the data? 
-ggplot(draws_df) +
+ggplot(weighted_draws_df) +
   geom_density(aes(w1), fill="blue", alpha=0.3) + 
   geom_density(aes(w1_prior_t), fill="red", alpha=0.3) +   xlab("w1") +
   ylab("Posterior Density") +
   theme_classic()
 
 #Plotting prior and posterior for weights: Has the model learned from the data? 
-ggplot(draws_df) +
+ggplot(weighted_draws_df) +
   geom_density(aes(w2), fill="blue", alpha=0.3) + 
   geom_density(aes(w2_prior_t), fill="red", alpha=0.3) +   xlab("w2") +
   ylab("Posterior Density") +
   theme_classic()
 
 #Plotting posteriors for sigma
-ggplot(draws_df) + 
+ggplot(weighted_draws_df) + 
     geom_density(aes(sigma), color = 'blue')
 
 #Plotting posteriors for tau
-ggplot(draws_df) + 
+ggplot(weighted_draws_df) + 
     geom_density(aes(`tau[1]`), color = 'blue') + 
     geom_density(aes(`tau[2]`), color = 'green')
 
 #Plotting posterior predictions vs. actual ratings
-ggplot() + 
-  geom_histogram(aes(data$SecondRating), color="darkblue", fill="blue", alpha=0.3) + 
+ggplot(weighted_draws_df) + 
+  geom_histogram(aes(data_subset$SecondRating, color="darkblue", fill="blue"), alpha=0.3) + 
   geom_density(aes(round(draws_df$`prior_preds[137,1]`*9, 0)), color="green", fill="green", alpha=0.3) + 
   xlab("Predicted ratings out of 137 trials") + 
   ylab("Posterior Density") + 
@@ -331,36 +346,34 @@ ggplot() +
 
 
 #Prior predictive check 
-ggplot(draws_df) + 
+ggplot(weighted_draws_df) + 
   geom_histogram(aes(`prior_preds[137,1]`*9),
   color="darkblue", fill="blue", alpha=0.3) + xlab("Predicted ratings out of 137 trials") + 
   ylab("Posterior Density") + 
-  
   theme_classic()
 
   
 #GOT TILL HERE! 
 #testing new plot
-ggplot(draws_df) +
+ggplot(weighted_draws_df) +
   geom_density(aes(`prior_preds[137,1]`*9))
 
 ```
 
 ```{r}
 #Plotting model quality for weight1
-ggplot(draws_df, aes(.iteration, weight1M, group=.chain, color=.chain)) +
+ggplot(weighted_draws_df, aes(.iteration, weight1M, group=.chain, color=.chain)) +
 geom_line()+
 theme_classic()
 
 #Plotting model quality for weight2
-ggplot(draws_df, aes(.iteration, weight2M, group=.chain, color=.chain)) +
+ggplot(weighted_draws_df, aes(.iteration, weight2M, group=.chain, color=.chain)) +
 geom_line()+
 theme_classic()
 
 #Print model diagnostics
 samples_weighted$cmdstan_diagnose()
 ```
-
 
 #Weighted Bayes for all participants with advanced model (two levels)
 
@@ -459,14 +472,6 @@ So the parameters (parameters to be estimated) AND model (form of the model) par
 we should not have fixed parameters = TRUE, since sigma isn't fixed
 
 
-
-
-
-
 BIASES:
 - ID plots also show: people differ in how much they use the rating scale
-
-
-
-
 
