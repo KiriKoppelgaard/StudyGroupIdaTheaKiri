@@ -199,7 +199,7 @@ samples_simple$summary()
 ```
 
 ```{r}
-#Plotting model quality for weight1
+##Plotting model quality for weight1
 ggplot(draws_df, aes(.iteration, weight1, group=.chain, color=.chain)) +
 geom_line()+
 theme_classic()

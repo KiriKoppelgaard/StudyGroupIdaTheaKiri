@@ -5,6 +5,8 @@ data {
   int<lower=1> trials;
   array[trials] int<lower=1,upper=2> choice;
   array[trials] int<lower=-1,upper=1> feedback;
+  int<lower=0,upper=1> con1; // is 1 if it's condition 1, is 0 otherwise
+  int<lower=0,upper=1> con2; // is 1 if it's condition 2, is 0 otherwise
 }
 
 transformed data {
@@ -31,7 +33,7 @@ model {
   
   for (t in 1:trials) {
     theta = softmax(temperature * value); // action prob. computed via softmax
-    target += categorical_lpmf(choice[t] | theta); // choice if distributed according to a categorical with a rate of theta
+    target += categorical_lpmf(choice[t] | theta); // choice is distributed according to a categorical with a rate of theta
     
     pe = feedback[t] - value[choice[t]]; // compute prediction error for chosen value only
     value[choice[t]] = value[choice[t]] + alpha * pe; // update chosen V
