@@ -109,6 +109,9 @@ d <- rbind(d, d2)
 #Manipulate choice to be in the range of 1 and 2
 d$choice <- ifelse(d$choice==0, 1, 2)
 
+d$con1 = ifelse(d$condition == 0.6, 1, 0)
+d$con2 = ifelse(d$condition == 0.8, 1, 0)
+
 ```
 
 ```{r}

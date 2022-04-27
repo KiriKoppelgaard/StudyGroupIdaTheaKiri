@@ -16,80 +16,85 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 ```
 
 ```{r}
-# cool stuff
+file <- file.path('RW_2con.stan')
 
-```
-
-# Part 1
-
-You have to design a study (aka plan the number of trials) assuming that people are using a reinforcement learning process to pick between 2 stimuli. In this study you expect there to be 2 conditions and the 1 participant playing the game will vary its learning rate between conditions. 
-
-The difference in learning rate is .2: 
-
-condition 1: x - .1
-condition 2: x + .1
-
-with x = 0.7. 
-
-The temperature (tau) is the same: 0.5.
-Identify a feasible number of trials and motivate it.
-
-## Simulating data
-
-### Functions 
-```{r}
-
-softmax <- function(x,tau) {
-  outcome = 1/(1+exp(-tau*x))
-  return(outcome) #the choice that is made
-}
-
-ValueUpdate = function(value, alpha, choice, feedback){
-  
-  v1 <- value[1] + alpha * (1-choice) * (feedback - value[1])
-  
-  v2 <- value[2] + alpha * (choice) * (feedback - value[2])
-  
-  updatedValue <- c(v1, v2)
-}
-
+mod <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 ```
 
 ```{r}
-value <- c(0.5, 0.5)
-alpha <- c(0.6, 0.8)
-temperature <- 0.5
-choice <- 0
-feedback <- -1
-p <- 0.75
 
-ValueUpdate(value, alpha, choice, feedback)
+trials_row <- c(50, 100, 200) #, 500, 1000, 2500, 5000, 7500, 9999)
+d <- read.csv('data/10000trials_RL_data.csv')
 
-d <- tibble(choice = rep(NA, trials),
-		value1 = rep(NA, trials), 
-		value2 = rep(NA, trials),
-		feedback = rep(NA, trials))
-
-```
-
-```{r}
-trials <- 1000
-
-Bot <- rbinom(trials, 1, p)
-
-for(i in 1:trials){
-	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
-	feedback <- ifelse(Bot[i] == choice, 1, 0)
-	value <- ValueUpdate(value, alpha, choice, feedback)
-	d$choice[i] <- choice
-	d$value1[i] <- value[1]
-	d$value2[i] <- value[2]
-	d$feedback[i] <- feedback 
+for (trial_n in trials_row){
+  print(trial_n)
+  data <- list(
+      trials = trial_n*2, 
+      feedback = c(d$feedback[d$condition == 0.6][1:trial_n],d$feedback[d$condition == 0.8][1:trial_n]),
+      choice = c(d$choice[d$condition == 0.6][1:trial_n],d$choice[d$condition == 0.8][1:trial_n]),
+      con1 = c(d$con1[d$condition == 0.6][1:trial_n],d$con1[d$condition == 0.8][1:trial_n]),
+      con2 = c(d$con2[d$condition == 0.6][1:trial_n],d$con2[d$condition == 0.8][1:trial_n])
+      )
+  
+  samples <- mod$sample(
+    data = data,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 500,
+    iter_sampling = 500,
+    refresh = 500,
+    max_treedepth = 15,
+    adapt_delta = 0.99)
+  
+  draws_df <- as_draws_df(samples$draws())
+  
+  temp <- tibble(trials = trial_n, 
+                 alpha1 = draws_df$alpha1,
+                 alpha2 = draws_df$alpha2,
+                 temperature = draws_df$temperature,
+                 alpha_prior = draws_df$alpha_prior,
+                 temperature_prior = draws_df$temperature_prior)
+  
+  if(exists("param_df")){param_df <- rbind (param_df, temp)} else {param_df <- temp}
 }
 
-
 ```
 
+#Plotting posteriors
+```{r}
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+p1 <- ggplot(draws_df) +
+  geom_density(aes(alpha1), fill="blue", alpha=0.3) + 
+  geom_density(aes(alpha_prior), fill="red", alpha=0.3) +   xlab("w1") +
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'Alpha: Prior and posterior distribution for W1')
+
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+p2 <- ggplot(weighted_draws_df) +
+  geom_density(aes(w2), fill="blue", alpha=0.3) + 
+  geom_density(aes(w2_prior_t), fill="red", alpha=0.3) +   xlab("w2") +
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'Weighted Bayes: Prior and posterior distribution for W2')
+
+#Plotting posteriors for sigma
+p3 <- ggplot(weighted_draws_df) + 
+    geom_density(aes(sigma), fill="blue", alpha=0.3) + 
+  theme_classic() + 
+  labs(title = 'Weighted Bayes: Posterior distribution for sigma')
+
+#Plotting posteriors for tau
+p4 <- ggplot(weighted_draws_df) + 
+    geom_density(aes(`tau[1]`), fill="blue", alpha=0.3) + 
+    geom_density(aes(`tau[2]`), fill="green", alpha=0.3) +
+  theme_classic() + 
+  labs(title = 'Weighted Bayes: Posterior distributions for tau')
+
+
+```
 
 
 [optional]: what happens if x is not = +.7 (tip: test a range of different x)?
@@ -98,11 +103,6 @@ for(i in 1:trials){
 # Part 2
 Given the large number of trials required, could you imagine producing an iterated design? E.g. a phone app where you can do a smaller number of trials (e.g. 10-20 or even 100, up to you!) in separate sessions, each time a posterior is generated and it is used as prior in the next time.
 Assuming no variance over time (ah!) can you figure out a good trade off between how many trials per session and number of sessions?
-
-
-
-
-
 
 [optional]: what are the differences in just re-running the model on the cumulative dataset (increased at every session) vs passing the posterior? Differences in terms of computational time, estimates, but also practical implication for running your study.
 [optional]: what happens if learning rate changes a bit across sessions? Include a variation between sessions according to a normal distribution with a mean of 0 and a sd of 0.02. Re-assess the number of trials/sessions used.
