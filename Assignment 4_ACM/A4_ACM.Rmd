@@ -15,124 +15,6 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
 
 ```
 
-# Part 1
-
-You have to design a study (aka plan the number of trials) assuming that people are using a reinforcement learning process to pick between 2 stimuli. In this study you expect there to be 2 conditions and the 1 participant playing the game will vary its learning rate between conditions. The difference in learning rate is .2: condition 1 has x - .1 and condition 2 x + .1, with x = 0.7. The temperature is the same: 0.5.
-Identify a feasible number of trials and motivate it.
-
-## Simulating data
-
-### Functions 
-```{r}
-#Creating softmax function to select choice among more options
-softmax <- function(x,tau) {
-  outcome = 1/(1+exp(-tau*x))
-  return(outcome) #the choice that is made
-}
-
-#Create update function, that simulates reinforcement learning
-ValueUpdate = function(value, alpha, choice, feedback){
-  #predicted reward + lr * prediction error
-  v1 <- value[1] + alpha * (1-choice) * (feedback - value[1]) 
-  v2 <- value[2] + alpha * (choice) * (feedback - value[2])
-  updatedValue <- c(v1, v2)
-  
-  #value = expected reward, feedback = reward, choice = slot machine
-}
-
-```
-
-
-###Defining variables and preparing data frame
-```{r}
-#defining intial values
-value <- c(0, 0) 
-alpha <- c(0.6, 0.8)
-temperature <- 0.5
-choice <- 0
-feedback <- -1
-conditions = 2
-p <- 0.75
-trials = 100
-
-#Intialising data frame
-d <- tibble(choice = rep(NA, trials),
-		value1 = rep(NA, trials), 
-		value2 = rep(NA, trials),
-		feedback = rep(NA, trials), 
-		condition = rep(NA, trials), 
-		trial = rep(NA, trials))
-
-d2 <- tibble(choice = rep(NA, trials),
-		value1 = rep(NA, trials), 
-		value2 = rep(NA, trials),
-		feedback = rep(NA, trials), 
-		condition = rep(NA, trials), 
-		trial = rep(NA, trials))
-
-```
-
-
-###Simulating data 
-```{r}
-#Define the bot mechanism a.k.a. the two arm bandit
-Bot <- rbinom(trials, 1, p)
-
-#Condition 1
-#Loop trough conditions and trials and save values
-current_alpha <- alpha[1] #save lr for current condition
-for(i in 1:trials){
-	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
-	feedback <- ifelse(Bot[i] == choice, 1, -1)
-	value <- ValueUpdate(value, current_alpha, choice, feedback)
-	d$choice[i] <- choice
-	d$value1[i] <- value[1]
-	d$value2[i] <- value[2]
-	d$feedback[i] <- feedback
-	d$condition[i] <- current_alpha
-	d$trial[i] <- i
-}
-#Condition 2
-#reset values
-choice <- 0
-feedback <- -1
-value <- c(0, 0) 
-
-#Loop trough conditions and trials and save values
-current_alpha <- alpha[2] #save lr for current condition
-for(i in 1:trials){
-	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
-	feedback <- ifelse(Bot[i] == choice, 1, -1)
-	value <- ValueUpdate(value, current_alpha, choice, feedback)
-	d2$choice[i] <- choice
-	d2$value1[i] <- value[1]
-	d2$value2[i] <- value[2]
-	d2$feedback[i] <- feedback
-	d2$condition[i] <- current_alpha
-	d2$trial[i] <- i
-}
-
-#Rbind the two data frames
-d <- rbind(d, d2)  
-
-#Manipulate choice to be in the range of 1 and 2
-d$choice <- ifelse(d$choice==0, 1, 2)
-
-```
-
-
-```{r}
-#prepare data block
-data <- list(
-      trials = trials*2, 
-      feedback = d$feedback,
-      choice = d$choice,
-      con1 = ifelse(d$condition == 0.6, 1, 0),
-      con2 = ifelse(d$condition == 0.8, 1, 0) 
-          )
-```
-
-
 ```{r}
 file <- file.path('RW_2con.stan')
 
@@ -140,25 +22,43 @@ mod <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = T
 ```
 
 ```{r}
-#Sampling
-samples <- mod$sample(
+
+trials_row <- c(50, 100, 200) #, 500, 1000, 2500, 5000, 7500, 9999)
+d <- read.csv('data/10000trials_RL_data.csv')
+
+for (trial_n in trials_row){
+  print(trial_n)
+  data <- list(
+      trials = trial_n*2, 
+      feedback = c(d$feedback[d$condition == 0.6][1:trial_n],d$feedback[d$condition == 0.8][1:trial_n]),
+      choice = c(d$choice[d$condition == 0.6][1:trial_n],d$choice[d$condition == 0.8][1:trial_n]),
+      con1 = c(d$con1[d$condition == 0.6][1:trial_n],d$con1[d$condition == 0.8][1:trial_n]),
+      con2 = c(d$con2[d$condition == 0.6][1:trial_n],d$con2[d$condition == 0.8][1:trial_n])
+      )
+  
+  samples <- mod$sample(
     data = data,
-    fixed_param = FALSE,
     seed = 123,
     chains = 2,
     parallel_chains = 2,
     threads_per_chain = 2,
     iter_warmup = 500,
     iter_sampling = 500,
-    refresh = 1000,
-    max_treedepth = 20,
+    refresh = 500,
+    max_treedepth = 15,
     adapt_delta = 0.99)
-
-#Save draws
-draws_df <- as_draws_df(samples$draws())
-
-#Print model summary
-samples$summary()
+  
+  draws_df <- as_draws_df(samples$draws())
+  
+  temp <- tibble(trials = trial_n, 
+                 alpha1 = draws_df$alpha1,
+                 alpha2 = draws_df$alpha2,
+                 temperature = draws_df$temperature,
+                 alpha_prior = draws_df$alpha_prior,
+                 temperature_prior = draws_df$temperature_prior)
+  
+  if(exists("param_df")){param_df <- rbind (param_df, temp)} else {param_df <- temp}
+}
 
 ```
 
