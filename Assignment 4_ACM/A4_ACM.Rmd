@@ -53,7 +53,7 @@ choice <- 0
 feedback <- -1
 conditions = 2
 p <- 0.75
-trials = 1000
+trials = 100
 
 #Intialising data frame
 d <- tibble(choice = rep(NA, trials),
@@ -127,8 +127,8 @@ data <- list(
       trials = trials*2, 
       feedback = d$feedback,
       choice = d$choice,
-      con1 = ifelse(d$condition == 0.8, 1, 0),
-      con2 = 1 - ifelse(d$condition == 0.8, 1, 0)
+      con1 = ifelse(d$condition == 0.6, 1, 0),
+      con2 = ifelse(d$condition == 0.8, 1, 0) 
           )
 ```
 
@@ -148,8 +148,8 @@ samples <- mod$sample(
     chains = 2,
     parallel_chains = 2,
     threads_per_chain = 2,
-    iter_warmup = 1000,
-    iter_sampling = 1000,
+    iter_warmup = 500,
+    iter_sampling = 500,
     refresh = 1000,
     max_treedepth = 20,
     adapt_delta = 0.99)
@@ -165,34 +165,39 @@ samples$summary()
 #Plotting posteriors
 ```{r}
 #Plotting prior and posterior for weights: Has the model learned from the data? 
-p1 <- ggplot(draws_df) +
-  geom_density(aes(alpha1), fill="blue", alpha=0.3) + 
-  geom_density(aes(alpha_prior), fill="red", alpha=0.3) +   xlab("w1") +
+ggplot(draws_df) +
+  geom_density(aes(inv.logit(alpha1)), fill="blue", alpha=0.3) + 
+  geom_density(aes(inv.logit(alpha_prior)), fill="red", alpha=0.3) +   xlab("Alpha1") +
   ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'Alpha: Prior and posterior distribution for W1')
+  labs(title = 'Prior and posterior distribution for Alpha1')
 
 #Plotting prior and posterior for weights: Has the model learned from the data? 
-p2 <- ggplot(weighted_draws_df) +
-  geom_density(aes(w2), fill="blue", alpha=0.3) + 
-  geom_density(aes(w2_prior_t), fill="red", alpha=0.3) +   xlab("w2") +
+ggplot(draws_df) +
+  geom_density(aes(inv.logit(alpha2)), fill="blue", alpha=0.3) + 
+  geom_density(aes(inv.logit(alpha_prior)), fill="red", alpha=0.3) +   xlab("Alpha2") +
   ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'Weighted Bayes: Prior and posterior distribution for W2')
+  labs(title = 'Prior and posterior distribution for Alpha2')
 
-#Plotting posteriors for sigma
-p3 <- ggplot(weighted_draws_df) + 
-    geom_density(aes(sigma), fill="blue", alpha=0.3) + 
+
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+ggplot(draws_df) +
+  geom_density(aes(inv.logit(temperature)*20), fill="blue", alpha=0.3) + 
+  geom_density(aes(inv.logit(temperature_prior)*20), fill="red", alpha=0.3) +   xlab("temperature") +
+  ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'Weighted Bayes: Posterior distribution for sigma')
+  labs(title = 'Prior and posterior distribution for temperature')
 
-#Plotting posteriors for tau
-p4 <- ggplot(weighted_draws_df) + 
-    geom_density(aes(`tau[1]`), fill="blue", alpha=0.3) + 
-    geom_density(aes(`tau[2]`), fill="green", alpha=0.3) +
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+ggplot(draws_df) +
+  geom_density(aes(temperature), fill="blue", alpha=0.3) + 
+  geom_density(aes(temperature_prior), fill="red", alpha=0.3) +   xlab("temperature") +
+  ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'Weighted Bayes: Posterior distributions for tau')
+  labs(title = 'Prior and posterior distribution for temperature on log odds scale')
 
+p1 + p2 + p3 + p4
 
 ```
 
