@@ -115,6 +115,9 @@ for(i in 1:trials){
 #Rbind the two data frames
 d <- rbind(d, d2)  
 
+#Manipulate choice to be in the range of 1 and 2
+d$choice <- ifelse(d$choice==0, 1, 2)
+
 ```
 
 
@@ -156,6 +159,40 @@ draws_df <- as_draws_df(samples$draws())
 
 #Print model summary
 samples$summary()
+
+```
+
+#Plotting posteriors
+```{r}
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+p1 <- ggplot(draws_df) +
+  geom_density(aes(alpha1), fill="blue", alpha=0.3) + 
+  geom_density(aes(alpha_prior), fill="red", alpha=0.3) +   xlab("w1") +
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'Alpha: Prior and posterior distribution for W1')
+
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+p2 <- ggplot(weighted_draws_df) +
+  geom_density(aes(w2), fill="blue", alpha=0.3) + 
+  geom_density(aes(w2_prior_t), fill="red", alpha=0.3) +   xlab("w2") +
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'Weighted Bayes: Prior and posterior distribution for W2')
+
+#Plotting posteriors for sigma
+p3 <- ggplot(weighted_draws_df) + 
+    geom_density(aes(sigma), fill="blue", alpha=0.3) + 
+  theme_classic() + 
+  labs(title = 'Weighted Bayes: Posterior distribution for sigma')
+
+#Plotting posteriors for tau
+p4 <- ggplot(weighted_draws_df) + 
+    geom_density(aes(`tau[1]`), fill="blue", alpha=0.3) + 
+    geom_density(aes(`tau[2]`), fill="green", alpha=0.3) +
+  theme_classic() + 
+  labs(title = 'Weighted Bayes: Posterior distributions for tau')
+
 
 ```
 
