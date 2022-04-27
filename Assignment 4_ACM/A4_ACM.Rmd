@@ -121,14 +121,43 @@ d <- rbind(d, d2)
 ```{r}
 #prepare data block
 data <- list(
-      trials = trials, 
+      trials = trials*2, 
       feedback = d$feedback,
       choice = d$choice,
-      condition1 = ifelse(d$condition == 0.8, 1, 0),
-      condition2 = 1 - ifelse(d$condition == 0.8, 1, 0)
+      con1 = ifelse(d$condition == 0.8, 1, 0),
+      con2 = 1 - ifelse(d$condition == 0.8, 1, 0)
           )
 ```
 
+
+```{r}
+file <- file.path('RW_2con.stan')
+
+mod <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+```
+
+```{r}
+#Sampling
+samples <- mod$sample(
+    data = data,
+    fixed_param = FALSE,
+    seed = 123,
+    chains = 2,
+    parallel_chains = 2,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    refresh = 1000,
+    max_treedepth = 20,
+    adapt_delta = 0.99)
+
+#Save draws
+draws_df <- as_draws_df(samples$draws())
+
+#Print model summary
+samples$summary()
+
+```
 
 
 [optional]: what happens if x is not = +.7 (tip: test a range of different x)?
