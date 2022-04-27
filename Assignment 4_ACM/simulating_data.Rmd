@@ -1,0 +1,119 @@
+
+```{r}
+#libraries
+library(pacman)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
+
+```
+
+# Part 1
+
+You have to design a study (aka plan the number of trials) assuming that people are using a reinforcement learning process to pick between 2 stimuli. In this study you expect there to be 2 conditions and the 1 participant playing the game will vary its learning rate between conditions. The difference in learning rate is .2: condition 1 has x - .1 and condition 2 x + .1, with x = 0.7. The temperature is the same: 0.5.
+Identify a feasible number of trials and motivate it.
+
+## Simulating data
+
+### Functions 
+```{r}
+#Creating softmax function to select choice among more options
+softmax <- function(x,tau) {
+  outcome = 1/(1+exp(-tau*x))
+  return(outcome) #the choice that is made
+}
+
+#Create update function, that simulates reinforcement learning
+ValueUpdate = function(value, alpha, choice, feedback){
+  #predicted reward + lr * prediction error
+  v1 <- value[1] + alpha * (1-choice) * (feedback - value[1]) 
+  v2 <- value[2] + alpha * (choice) * (feedback - value[2])
+  updatedValue <- c(v1, v2)
+  
+  #value = expected reward, feedback = reward, choice = slot machine
+}
+
+```
+
+
+###Defining variables and preparing data frame
+```{r}
+#defining intial values
+value <- c(0, 0) 
+alpha <- c(0.6, 0.8)
+temperature <- 0.5
+choice <- 0
+feedback <- -1
+conditions = 2
+p <- 0.75
+trials = 10000
+
+#Intialising data frame
+d <- tibble(choice = rep(NA, trials),
+		value1 = rep(NA, trials), 
+		value2 = rep(NA, trials),
+		feedback = rep(NA, trials), 
+		condition = rep(NA, trials), 
+		trial = rep(NA, trials))
+
+d2 <- tibble(choice = rep(NA, trials),
+		value1 = rep(NA, trials), 
+		value2 = rep(NA, trials),
+		feedback = rep(NA, trials), 
+		condition = rep(NA, trials), 
+		trial = rep(NA, trials))
+
+```
+
+
+###Simulating data 
+```{r}
+#Define the bot mechanism a.k.a. the two arm bandit
+Bot <- rbinom(trials, 1, p)
+
+#Condition 1
+#Loop trough conditions and trials and save values
+current_alpha <- alpha[1] #save lr for current condition
+for(i in 1:trials){
+	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
+	feedback <- ifelse(Bot[i] == choice, 1, -1)
+	value <- ValueUpdate(value, current_alpha, choice, feedback)
+	d$choice[i] <- choice
+	d$value1[i] <- value[1]
+	d$value2[i] <- value[2]
+	d$feedback[i] <- feedback
+	d$condition[i] <- current_alpha
+	d$trial[i] <- i
+}
+#Condition 2
+#reset values
+choice <- 0
+feedback <- -1
+value <- c(0, 0) 
+
+#Loop trough conditions and trials and save values
+current_alpha <- alpha[2] #save lr for current condition
+for(i in 1:trials){
+	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
+	feedback <- ifelse(Bot[i] == choice, 1, -1)
+	value <- ValueUpdate(value, current_alpha, choice, feedback)
+	d2$choice[i] <- choice
+	d2$value1[i] <- value[1]
+	d2$value2[i] <- value[2]
+	d2$feedback[i] <- feedback
+	d2$condition[i] <- current_alpha
+	d2$trial[i] <- i
+}
+
+#Rbind the two data frames
+d <- rbind(d, d2)  
+
+#Manipulate choice to be in the range of 1 and 2
+d$choice <- ifelse(d$choice==0, 1, 2)
+
+```
+
+```{r}
+path <- "/Users/thearolskovsloth/Documents/MASTERS_I_COGSCI/StudyGroupIdaTheaKiri/Assignment 4_ACM"
+
+write.csv(d,paste(path,"/data/",trials,"trials_RL_data.csv", sep=""), row.names = FALSE)
+```
+
