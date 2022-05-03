@@ -16,14 +16,14 @@ p_load(tidyverse, here, posterior, cmdstanr, boot, brms, reshape2, tidyr, ggbees
 ```
 
 ```{r}
-#load file
+#load STAN file
 file <- file.path('RW_2con.stan')
 
 #compile model
 mod <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 ```
 
-```{r}
+```{r, eval = FALSE}
 #defining amount of trials
 trials_row <- c(50, 100, 200, 500, 1000, 2500, 5000, 7500, 10000)
 d <- read.csv('data/10000trials_RL_data.csv')
@@ -93,13 +93,14 @@ ggplot(param_df) +
   labs(title = 'Difference between the estimates of Alpha')
 
 
-#Plotting prior and posterior for weights: Has the model learned from the data? 
+#Plotting prior and posterior for the temperature: Has the model learned from the data? 
 ggplot(param_df) +
   geom_density(aes(temperature), fill="blue", alpha=0.3) + 
   geom_density(aes(temperature_prior), fill="red", alpha=0.3) +   xlab("temperature") +
   ylab("Posterior Density") +
   facet_wrap(~ trials) + 
   theme_classic() + 
+  geom_vline(xintercept = log(0.5/20), color = 'blue', linetype = 'dashed') + 
   labs(title = 'Prior and posterior distribution for temperature on log odds scale')
 
 ```
@@ -112,12 +113,182 @@ ggplot(param_df) +
 Given the large number of trials required, could you imagine producing an iterated design? E.g. a phone app where you can do a smaller number of trials (e.g. 10-20 or even 100, up to you!) in separate sessions, each time a posterior is generated and it is used as prior in the next time.
 Assuming no variance over time (ah!) can you figure out a good trade off between how many trials per session and number of sessions?
 
-
-
 ```{r}
-
+#read the simulated data 
+if(exists("iterated_data")){print('exists')} else {iterated_data <- read.csv('data/iterated_RL_data.csv')}
 ```
 
+```{r}
+#load STAN file
+file <- file.path('RW_part2.stan')
+
+#compile model
+mod <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
+```
+
+```{r}
+#reset parameter df
+param_df_iter <- NULL
+
+#initialise values
+session_numbers <- c(unique(iterated_data$session_number))
+trial_n = 50
+        
+#looping trough sessions 
+for (sn in session_numbers){
+  
+  #initialise priors
+  prior_alphaMean1 = 0
+  prior_alphaSD1 = 1
+  prior_alphaMean2 = 0
+  prior_alphaSD2 = 1
+  prior_temperatureMean = -2
+  prior_temperatureSD = 1
+  
+  for (s in 1:sn){
+    
+    temp <-  filter(iterated_data, session_number == sn & session == s)
+    
+    data <- list(
+        trials = trial_n*2, 
+        feedback = c(temp$feedback[temp$condition == 0.6][1:trial_n],temp$feedback[temp$condition == 0.8][1:trial_n]),
+        choice = c(temp$choice[temp$condition == 0.6][1:trial_n],temp$choice[temp$condition == 0.8][1:trial_n]),
+        con1 = c(temp$con1[temp$condition == 0.6][1:trial_n],temp$con1[temp$condition == 0.8][1:trial_n]),
+        con2 = c(temp$con2[temp$condition == 0.6][1:trial_n],temp$con2[temp$condition == 0.8][1:trial_n]), 
+        prior_alphaMean1 = prior_alphaMean1,
+        prior_alphaSD1 = prior_alphaSD1, 
+        prior_alphaMean2 = prior_alphaMean2,
+        prior_alphaSD2 = prior_alphaSD2,
+        prior_temperatureMean = prior_temperatureMean, 
+        prior_temperatureSD = prior_temperatureSD
+        )
+    
+    samples <- mod$sample(
+      data = data,
+      seed = 123,
+      chains = 2,
+      parallel_chains = 2,
+      threads_per_chain = 2,
+      iter_warmup = 500,
+      iter_sampling = 500,
+      refresh = 500,
+      max_treedepth = 15,
+      adapt_delta = 0.99)
+    
+    draws_df <- as_draws_df(samples$draws())
+    
+    #define new priors
+    prior_alphaMean1 <- mean(draws_df$alpha1)
+    prior_alphaSD1 <- sd(draws_df$alpha1)
+    prior_alphaMean2 <- mean(draws_df$alpha2)
+    prior_alphaSD2 <- sd(draws_df$alpha2)
+    prior_temperatureMean <- mean(draws_df$temperature)
+    prior_temperatureSD <- sd(draws_df$temperature)
+    
+    print(c(prior_alphaMean2, 'mean2'))
+    
+    temp <- tibble(trials = trial_n, 
+                   alpha1 = draws_df$alpha1,
+                   alphaMean1 = mean(inv.logit(draws_df$alpha1)),
+                   alphaSD1 = sd(inv.logit(draws_df$alpha1)),
+                   alphaMean2 = mean(inv.logit(draws_df$alpha1)),
+                   alphaSD2 = sd(inv.logit(draws_df$alpha1)),
+                   alpha2 = draws_df$alpha2,
+                   temperature = draws_df$temperature,
+                   alpha1_prior = draws_df$alpha1_prior,
+                   alpha2_prior = draws_df$alpha2_prior,
+                   temperature_prior = draws_df$temperature_prior, 
+                   session = s, 
+                   session_number = sn)
+    
+    if(exists("param_df_iter")){param_df_iter <- rbind (param_df_iter, temp)} else {param_df_iter <- temp}
+  }
+}
+```
+
+#Plotting 
+
+```{r}
+#create diff column
+param_df_iter$diff <- inv.logit(param_df_iter$alpha2) - inv.logit(param_df_iter$alpha1)
+
+
+#How does the alpha estimate evolve over 25 sessions of 50 trials
+param_df_iter %>% filter(session_number == 25) %>%
+ggplot() +
+  geom_density(aes(inv.logit(alpha1)), fill="purple", alpha=0.3) + 
+  geom_density(aes(inv.logit(alpha1_prior)), fill="red", alpha=0.3) + xlab("Alpha") +
+  geom_density(aes(inv.logit(alpha2_prior)), fill="red", alpha=0.3) + xlab("Alpha") +
+  geom_density(aes(inv.logit(alpha2)), fill="green", alpha=0.3) + 
+  geom_vline(xintercept = 0.6, color = 'purple', linetype = 'dashed') + 
+  geom_vline(xintercept = 0.8, color = 'green', linetype = 'dashed') + 
+  facet_wrap(~session) + 
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'How does the alpha estimate evolve over 25 sessions of 50 trials')
+
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+param_df_iter %>% filter(session_number == 25) %>%
+ggplot() +
+  geom_density(aes(diff), fill="violetred3", alpha=0.3) + 
+  geom_vline(xintercept = 0.2, color = 'violetred3', linetype = 'dashed') + 
+  facet_wrap(~session) + 
+   annotate("rect", xmin = 0, xmax = 0.4, ymin = 0, ymax = 10,
+        alpha = .1) + 
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'Difference between the estimates of Alpha for different amount of sessions')
+
+
+#How does the alpha estimate evolve over for different amount of sessions of 50 trials
+ggplot(param_df_iter) +
+  geom_density(aes(inv.logit(alpha1)), fill="purple", alpha=0.3) + 
+  geom_density(aes(inv.logit(alpha1_prior)), fill="red", alpha=0.3) + xlab("Alpha") +
+  geom_density(aes(inv.logit(alpha2_prior)), fill="red", alpha=0.3) + xlab("Alpha") +
+  geom_density(aes(inv.logit(alpha2)), fill="green", alpha=0.3) + 
+  geom_vline(xintercept = 0.6, color = 'purple', linetype = 'dashed') + 
+  geom_vline(xintercept = 0.8, color = 'green', linetype = 'dashed') + 
+  facet_wrap(~session_number) + 
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'How does the alpha estimate evolve over 15 sessions of 50 trials')
+
+
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+ggplot(param_df_iter) +
+  geom_density(aes(diff), fill="violetred3", alpha=0.3) + 
+  geom_vline(xintercept = 0.2, color = 'violetred3', linetype = 'dashed') + 
+  facet_wrap(~session_number) + 
+   annotate("rect", xmin = 0, xmax = 0.4, ymin = 0, ymax = 10,
+        alpha = .1) + 
+  ylab("Posterior Density") +
+  theme_classic() + 
+  labs(title = 'Difference between the estimates of Alpha for different amount of sessions')
+
+
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+ggplot(param_df_iter) +
+  geom_density(aes(inv.logit(temperature)*20), fill="blue", alpha=0.3) + 
+  geom_density(aes(inv.logit(temperature_prior)*20), fill="red", alpha=0.3) +  
+  geom_vline(xintercept = 0.5, color = 'violetred3', linetype = 'dashed') + 
+  xlab("temperature") +
+  ylab("Posterior Density") +
+  facet_wrap(~ session_number) + 
+  theme_classic() + 
+  labs(title = 'Prior and posterior distribution for temperature on log odds scale')
+
+#Plotting prior and posterior for weights: Has the model learned from the data? 
+ggplot(param_df_iter) +
+  geom_density(aes(temperature), fill="blue", alpha=0.3) + 
+  geom_density(aes(temperature_prior), fill="red", alpha=0.3) +  
+  geom_vline(xintercept = log(0.5/20), color = 'violetred3', linetype = 'dashed') + 
+  xlab("temperature") +
+  ylab("Posterior Density") +
+  facet_wrap(~ session_number) + 
+  theme_classic() + 
+  labs(title = 'Prior and posterior distribution for temperature')
+
+```
 
 
 [optional]: what are the differences in just re-running the model on the cumulative dataset (increased at every session) vs passing the posterior? Differences in terms of computational time, estimates, but also practical implication for running your study.
