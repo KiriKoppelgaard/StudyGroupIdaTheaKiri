@@ -11,21 +11,24 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 #libraries
 library(pacman)
-p_load(tidyverse, here, posterior, cmdstanr, boot, brms)
+p_load(tidyverse, here, posterior, cmdstanr, boot, brms, reshape2, tidyr, ggbeeswarm)
 
 ```
 
 ```{r}
+#load file
 file <- file.path('RW_2con.stan')
 
+#compile model
 mod <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 ```
 
 ```{r}
-
-trials_row <- c(50, 100, 200) #, 500, 1000, 2500, 5000, 7500, 9999)
+#defining amount of trials
+trials_row <- c(50, 100, 200, 500, 1000, 2500, 5000, 7500, 10000)
 d <- read.csv('data/10000trials_RL_data.csv')
 
+#looping trough trials 
 for (trial_n in trials_row){
   print(trial_n)
   data <- list(
@@ -62,42 +65,42 @@ for (trial_n in trials_row){
 
 ```
 
-#Plotting posteriors
 ```{r}
+#create diff column
+param_df$diff <- inv.logit(param_df$alpha2) - inv.logit(param_df$alpha1)
+
 #Plotting prior and posterior for weights: Has the model learned from the data? 
-ggplot(draws_df) +
-  geom_density(aes(inv.logit(alpha1)), fill="blue", alpha=0.3) + 
-  geom_density(aes(inv.logit(alpha_prior)), fill="red", alpha=0.3) +   xlab("Alpha1") +
+ggplot(param_df) +
+  geom_density(aes(inv.logit(alpha1)), fill="purple", alpha=0.3) + 
+  geom_density(aes(inv.logit(alpha_prior)), fill="red", alpha=0.3) +   xlab("Alpha") +
+  geom_density(aes(inv.logit(alpha2)), fill="green", alpha=0.3) + 
+  geom_vline(xintercept = 0.6, color = 'purple', linetype = 'dashed') + 
+  geom_vline(xintercept = 0.8, color = 'green', linetype = 'dashed') + 
+  facet_wrap(~trials) + 
   ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'Prior and posterior distribution for Alpha1')
+  labs(title = 'Prior and posterior distribution for Alpha')
 
 #Plotting prior and posterior for weights: Has the model learned from the data? 
-ggplot(draws_df) +
-  geom_density(aes(inv.logit(alpha2)), fill="blue", alpha=0.3) + 
-  geom_density(aes(inv.logit(alpha_prior)), fill="red", alpha=0.3) +   xlab("Alpha2") +
+ggplot(param_df) +
+  geom_density(aes(diff), fill="violetred3", alpha=0.3) + 
+  geom_vline(xintercept = 0.2, color = 'violetred3', linetype = 'dashed') + 
+  facet_wrap(~trials) + 
+   annotate("rect", xmin = 0, xmax = 0.4, ymin = 0, ymax = 10,
+        alpha = .1) + 
   ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'Prior and posterior distribution for Alpha2')
+  labs(title = 'Difference between the estimates of Alpha')
 
 
 #Plotting prior and posterior for weights: Has the model learned from the data? 
-ggplot(draws_df) +
-  geom_density(aes(inv.logit(temperature)*20), fill="blue", alpha=0.3) + 
-  geom_density(aes(inv.logit(temperature_prior)*20), fill="red", alpha=0.3) +   xlab("temperature") +
-  ylab("Posterior Density") +
-  theme_classic() + 
-  labs(title = 'Prior and posterior distribution for temperature')
-
-#Plotting prior and posterior for weights: Has the model learned from the data? 
-ggplot(draws_df) +
+ggplot(param_df) +
   geom_density(aes(temperature), fill="blue", alpha=0.3) + 
   geom_density(aes(temperature_prior), fill="red", alpha=0.3) +   xlab("temperature") +
   ylab("Posterior Density") +
+  facet_wrap(~ trials) + 
   theme_classic() + 
   labs(title = 'Prior and posterior distribution for temperature on log odds scale')
-
-p1 + p2 + p3 + p4
 
 ```
 
@@ -111,6 +114,9 @@ Assuming no variance over time (ah!) can you figure out a good trade off between
 
 
 
+```{r}
+
+```
 
 
 

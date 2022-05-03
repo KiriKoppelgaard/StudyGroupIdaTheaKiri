@@ -42,7 +42,6 @@ alpha <- c(0.6, 0.8)
 temperature <- 0.5
 choice <- 0
 feedback <- -1
-conditions = 2
 p <- 0.75
 trials = 10000
 
@@ -64,7 +63,7 @@ d2 <- tibble(choice = rep(NA, trials),
 ```
 
 
-###Simulating data 
+###Part 1: Simulating data 
 ```{r}
 #Define the bot mechanism a.k.a. the two arm bandit
 Bot <- rbinom(trials, 1, p)
@@ -114,9 +113,104 @@ d$con2 = ifelse(d$condition == 0.8, 1, 0)
 
 ```
 
-```{r}
-path <- "/Users/thearolskovsloth/Documents/MASTERS_I_COGSCI/StudyGroupIdaTheaKiri/Assignment 4_ACM"
 
-write.csv(d,paste(path,"/data/",trials,"trials_RL_data.csv", sep=""), row.names = FALSE)
+```{r}
+#path <- 'INSERT PATH'
+
+write.csv(d,paste("data/",trials,"trials_RL_data.csv", sep=""), row.names = FALSE)
 ```
 
+###Part 2: Simulating data for iterated design
+```{r}
+#defining intial values
+session_numbers = c(10, 20, 50, 75, 100, 250, 500, 750, 1000)
+trials = 50
+alpha <- c(0.6, 0.8)
+temperature <- 0.5
+p <- 0.75
+trials = 10000
+
+#Intialising data frame
+d <- tibble(choice = rep(NA, trials),
+		value1 = rep(NA, trials), 
+		value2 = rep(NA, trials),
+		feedback = rep(NA, trials), 
+		condition = rep(NA, trials), 
+		trial = rep(NA, trials), 
+		session = rep(NA, trials))
+
+d2 <- tibble(choice = rep(NA, trials),
+		value1 = rep(NA, trials), 
+		value2 = rep(NA, trials),
+		feedback = rep(NA, trials), 
+		condition = rep(NA, trials), 
+		trial = rep(NA, trials), 
+		session = rep(NA, trials))
+
+for (session_number in session_numbers) {
+  print(session_number)
+  for (session in session_number) {
+    #Condition 1
+    #reset values
+    choice <- 0
+    feedback <- -1
+    value <- c(0, 0) 
+    
+    #Loop trough conditions and trials and save values
+    current_alpha <- alpha[1] #save lr for current condition
+    for(i in 1:trials){
+    	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
+    	feedback <- ifelse(Bot[i] == choice, 1, -1)
+    	value <- ValueUpdate(value, current_alpha, choice, feedback)
+    	d$choice[i] <- choice
+    	d$value1[i] <- value[1]
+    	d$value2[i] <- value[2]
+    	d$feedback[i] <- feedback
+    	d$condition[i] <- current_alpha
+    	d$trial[i] <- i
+    	d$session[i] <- session
+    }
+    #Condition 2
+    #reset values
+    choice <- 0
+    feedback <- -1
+    value <- c(0, 0) 
+    
+    #Loop trough conditions and trials and save values
+    current_alpha <- alpha[2] #save lr for current condition
+    for(i in 1:trials){
+    	choice <- rbinom(1, 1 ,softmax(value[2] - value[1], temperature))
+    	feedback <- ifelse(Bot[i] == choice, 1, -1)
+    	value <- ValueUpdate(value, current_alpha, choice, feedback)
+    	d2$choice[i] <- choice
+    	d2$value1[i] <- value[1]
+    	d2$value2[i] <- value[2]
+    	d2$feedback[i] <- feedback
+    	d2$condition[i] <- current_alpha
+    	d2$trial[i] <- i
+    	d2$session[i] <- session
+    	
+    #Rbind the two data frames
+    d <- rbind(d, d2)
+    	
+    #bind with previous data
+    if(exists("iterated_data")){iterated_data <- rbind (iterated_data, d)} else {iterated_data <- d}
+  
+    }
+  }
+} 
+
+#Manipulate choice to be in the range of 1 and 2
+iterated_data$choice <- ifelse(iterated_data$choice==0, 1, 2)
+
+#add condition columns dummy coded
+iterated_data$con1 = ifelse(iterated_data$condition == 0.6, 1, 0)
+iterated_data$con2 = ifelse(iterated_data$condition == 0.8, 1, 0)
+
+
+```
+
+```{r}
+#path <- 'INSERT PATH'
+write.csv(iterated_data,paste("data/","iterated_RL_data.csv", sep=""), row.names = FALSE)
+```
