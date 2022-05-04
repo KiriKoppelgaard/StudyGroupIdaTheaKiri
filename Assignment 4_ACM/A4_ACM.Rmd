@@ -178,12 +178,12 @@ for (sn in session_numbers){
     draws_df <- as_draws_df(samples$draws())
     
     #define new priors
-    prior_alphaMean1 <- mean(draws_df$alpha1)
-    prior_alphaSD1 <- sd(draws_df$alpha1)
-    prior_alphaMean2 <- mean(draws_df$alpha2)
-    prior_alphaSD2 <- sd(draws_df$alpha2)
-    prior_temperatureMean <- mean(draws_df$temperature)
-    prior_temperatureSD <- sd(draws_df$temperature)
+    prior_alphaMean1 <- log(mean(inv.logit(draws_df$alpha1)))
+    prior_alphaSD1 <- log(sd(inv.logit(draws_df$alpha1)))
+    prior_alphaMean2 <- log(mean(inv.logit(draws_df$alpha2)))
+    prior_alphaSD2 <- log(sd(inv.logit(draws_df$alpha2)))
+    prior_temperatureMean <- log(mean(inv.logit(draws_df$temperature)))
+    prior_temperatureSD <- log(sd(inv.logit(draws_df$temperature)))
     
     print(c(prior_alphaMean2, 'mean2'))
     
