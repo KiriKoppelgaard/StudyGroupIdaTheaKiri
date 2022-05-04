@@ -23,7 +23,7 @@ file <- file.path('RW_2con.stan')
 mod <- cmdstan_model(file, cpp_options = list(stan_threads = TRUE), pedantic = TRUE)
 ```
 
-```{r, eval = FALSE}
+```{r}
 #defining amount of trials
 trials_row <- c(50, 100, 200, 500, 1000, 2500, 5000, 7500, 10000)
 d <- read.csv('data/10000trials_RL_data.csv')
@@ -113,6 +113,7 @@ ggplot(param_df) +
 Given the large number of trials required, could you imagine producing an iterated design? E.g. a phone app where you can do a smaller number of trials (e.g. 10-20 or even 100, up to you!) in separate sessions, each time a posterior is generated and it is used as prior in the next time.
 Assuming no variance over time (ah!) can you figure out a good trade off between how many trials per session and number of sessions?
 
+##Parameter recovery with 50 trials different amount of sessions 
 ```{r}
 #read the simulated data 
 if(exists("iterated_data")){print('exists')} else {iterated_data <- read.csv('data/iterated_RL_data.csv')}
@@ -178,14 +179,12 @@ for (sn in session_numbers){
     draws_df <- as_draws_df(samples$draws())
     
     #define new priors
-    prior_alphaMean1 <- log(mean(inv.logit(draws_df$alpha1)))
-    prior_alphaSD1 <- log(sd(inv.logit(draws_df$alpha1)))
-    prior_alphaMean2 <- log(mean(inv.logit(draws_df$alpha2)))
-    prior_alphaSD2 <- log(sd(inv.logit(draws_df$alpha2)))
-    prior_temperatureMean <- log(mean(inv.logit(draws_df$temperature)))
-    prior_temperatureSD <- log(sd(inv.logit(draws_df$temperature)))
-    
-    print(c(prior_alphaMean2, 'mean2'))
+    prior_alphaMean1 <- mean(draws_df$alpha1)
+    prior_alphaSD1 <- sd(draws_df$alpha1)
+    prior_alphaMean2 <- mean(draws_df$alpha2)
+    prior_alphaSD2 <- sd(draws_df$alpha2)
+    prior_temperatureMean <- mean(draws_df$temperature)
+    prior_temperatureSD <- sd(draws_df$temperature)
     
     temp <- tibble(trials = trial_n, 
                    alpha1 = draws_df$alpha1,
@@ -205,13 +204,10 @@ for (sn in session_numbers){
   }
 }
 ```
-
-#Plotting 
-
+##Plotting
 ```{r}
 #create diff column
 param_df_iter$diff <- inv.logit(param_df_iter$alpha2) - inv.logit(param_df_iter$alpha1)
-
 
 #How does the alpha estimate evolve over 25 sessions of 50 trials
 param_df_iter %>% filter(session_number == 25) %>%
@@ -237,7 +233,7 @@ ggplot() +
         alpha = .1) + 
   ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'Difference between the estimates of Alpha for different amount of sessions')
+  labs(title = 'Difference between the estimates of alpha for different amount of sessions with 50 trials')
 
 
 #How does the alpha estimate evolve over for different amount of sessions of 50 trials
@@ -251,7 +247,7 @@ ggplot(param_df_iter) +
   facet_wrap(~session_number) + 
   ylab("Posterior Density") +
   theme_classic() + 
-  labs(title = 'How does the alpha estimate evolve over 15 sessions of 50 trials')
+  labs(title = 'Estimates of alphas for varying amount of sessions with 50 trials')
 
 
 #Plotting prior and posterior for weights: Has the model learned from the data? 
@@ -289,6 +285,7 @@ ggplot(param_df_iter) +
   labs(title = 'Prior and posterior distribution for temperature')
 
 ```
+
 
 
 [optional]: what are the differences in just re-running the model on the cumulative dataset (increased at every session) vs passing the posterior? Differences in terms of computational time, estimates, but also practical implication for running your study.
